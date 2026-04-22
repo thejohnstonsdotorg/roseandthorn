@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View } from 'react-native';
 import { HomeScreen } from './screens/HomeScreen';
 import { SetupScreen } from './screens/SetupScreen';
@@ -15,19 +13,6 @@ import { SettingsScreen } from './screens/SettingsScreen';
 import { PassPrompt } from './components/PassPrompt';
 import { useSessionStore } from './stores/sessionStore';
 import { theme } from './lib/theme';
-
-const Stack = createNativeStackNavigator();
-
-export type RootStackParamList = {
-  Home: undefined;
-  Setup: undefined;
-  SessionStart: undefined;
-  Rose: undefined;
-  Thorn: undefined;
-  Summary: undefined;
-  History: undefined;
-  Settings: undefined;
-};
 
 export default function App() {
   const [screen, setScreen] = useState<'home' | 'setup' | 'sessionStart' | 'rose' | 'thorn' | 'summary' | 'history' | 'settings'>('home');

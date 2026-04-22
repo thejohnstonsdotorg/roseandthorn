@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, Share } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Share } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import { useFamilyStore } from '../stores/familyStore';
 import { getDatabase, resetDatabase } from '../db/migrations';
@@ -109,6 +109,36 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
                   </TouchableOpacity>
                 </View>
               ))}
+            </View>
+
+            <View className="mb-6">
+              <Text className="text-sm font-semibold mb-2" style={{ color: theme.colors.textMuted }}>
+                Add Member
+              </Text>
+              <View className="flex-row">
+                <TextInput
+                  className="flex-1 border rounded-xl p-3 text-base mr-2"
+                  style={{
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text,
+                    backgroundColor: theme.colors.surface,
+                  }}
+                  placeholder="New member name"
+                  placeholderTextColor={theme.colors.textMuted}
+                  value={newMemberName}
+                  onChangeText={setNewMemberName}
+                  onSubmitEditing={handleAddMember}
+                  returnKeyType="done"
+                />
+                <TouchableOpacity
+                  onPress={handleAddMember}
+                  className="px-4 rounded-xl items-center justify-center"
+                  style={{ backgroundColor: theme.colors.primary }}
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-white font-bold text-lg">+</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             <TouchableOpacity

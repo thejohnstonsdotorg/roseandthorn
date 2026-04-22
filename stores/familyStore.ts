@@ -41,7 +41,7 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
       );
       set({ family, members, loaded: true });
     } else {
-      set({ loaded: true });
+      set({ family: null, members: [], loaded: true });
     }
   },
 
