@@ -19,12 +19,9 @@ Rose & Thorn is an Expo (React Native) app for a family dinner ritual. A single 
 - **`familyStore.loadFamily()`** must always set `family: null, members: []` when no family exists in SQLite. Do not add an early return that skips the `set()` call — this would leave stale state after "Reset All Data".
 - **`resetDatabase()`** drops and recreates all tables in the same SQLite connection. The `db` singleton does not need to be cleared.
 
-## What is deferred — do not add in MVP
+## Roadmap and what to work on next
 
-- Voice-to-text input (deferred to v1.1)
-- Photo attachments per Rose/Thorn (deferred to v1.1)
-- QR code camera import (deferred to v1.2; `expo-barcode-scanner` is already installed)
-- Any cloud sync or remote features (v2.0)
+All planned features, deferred work, and versioned milestones (v1.1 through v2.0) live in [PLAN.md](./PLAN.md). That file is the single source of truth for the roadmap. Do not duplicate roadmap content here — update PLAN.md instead.
 
 ## Running and verifying
 
