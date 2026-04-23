@@ -21,6 +21,9 @@ export interface DownloadProgressEvent {
   fraction: number;
 }
 
+/** True if the native module is registered — i.e. we're on an Android dev-client build. */
+export const isNativeModulePresent = !!nativeModule;
+
 export const ExpoMediaPipeImageGen = {
   /** Returns true if MediaPipe is available and the model is downloaded. */
   async isAvailable(): Promise<boolean> {

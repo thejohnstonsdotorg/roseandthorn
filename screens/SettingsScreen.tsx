@@ -5,6 +5,7 @@ import { useFamilyStore } from '../stores/familyStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { getDatabase, resetDatabase } from '../db/migrations';
 import { theme } from '../lib/theme';
+import { isNativeModulePresent } from '../modules/expo-mediapipe-image-gen/src/ExpoMediaPipeImageGenModule';
 
 function DownloadProgressBar({ fraction }: { fraction: number }) {
   const pct = Math.round((fraction ?? 0) * 100);
@@ -185,7 +186,7 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
                   </Text>
                   <Switch
                     value={aiImagesEnabled}
-                    disabled={aiModelDownloading}
+                    disabled={!isNativeModulePresent || aiModelDownloading}
                     onValueChange={(value) => {
                       if (value && !aiImagesEnabled) {
                         Alert.alert(
@@ -219,7 +220,9 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
                   />
                 </View>
                 <Text className="text-sm" style={{ color: theme.colors.textMuted }}>
-                  {aiImagesEnabled
+                  {!isNativeModulePresent
+                    ? 'Requires a physical device with the dev client build. Not available in the emulator.'
+                    : aiImagesEnabled
                     ? 'AI artwork enabled. Tap ✨ on any entry to regenerate with AI.'
                     : aiModelDownloading
                     ? 'Downloading model…'
