@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.os.Build
 import android.util.Base64
+import com.google.mediapipe.framework.image.BitmapExtractor
 import com.google.mediapipe.tasks.vision.imagegenerator.ImageGenerator
 import com.google.mediapipe.tasks.vision.imagegenerator.ImageGenerator.ConditionOptions
 import com.google.mediapipe.tasks.vision.imagegenerator.ImageGenerator.ImageGeneratorOptions
@@ -98,9 +99,12 @@ class ExpoMediaPipeImageGenModule : Module() {
   // ─── Private: model path helpers ────────────────────────────────────────
 
   private fun modelDir(): File {
-    val filesDir = appContext.reactContext?.filesDir
-      ?: throw IllegalStateException("filesDir unavailable")
-    return File(filesDir, MODEL_DIR_NAME)
+    val ctx = appContext.reactContext
+      ?: throw IllegalStateException("reactContext unavailable")
+    // Prefer external files dir: survives app reinstalls (debug builds wipe internal filesDir).
+    // Falls back to internal filesDir if external storage is unavailable.
+    val baseDir = ctx.getExternalFilesDir(null) ?: ctx.filesDir
+    return File(baseDir, MODEL_DIR_NAME)
   }
 
   private fun isModelPresent(): Boolean {
@@ -141,22 +145,37 @@ class ExpoMediaPipeImageGenModule : Module() {
     }
 
     // Stream download to zip file
+    // Throttle progress events: only emit when fraction advances by >=0.5% to avoid
+    // JNI global reference table overflow (max 51200) on long downloads.
+    val eventThreshold = if (totalBytes > 0) totalBytes / 200L else 5L * 1024 * 1024
     conn.inputStream.use { input ->
       FileOutputStream(zipFile, resumeFrom > 0 && responseCode == HttpURLConnection.HTTP_PARTIAL).use { output ->
         val buf = ByteArray(256 * 1024) // 256 KB chunks
         var bytesReceived = resumeFrom
+        var lastEventAt = resumeFrom
         var read: Int
         while (input.read(buf).also { read = it } != -1) {
           output.write(buf, 0, read)
           bytesReceived += read
-          sendEvent(
-            "onDownloadProgress", mapOf(
-              "bytesReceived" to bytesReceived,
-              "totalBytes" to totalBytes,
-              "fraction" to if (totalBytes > 0) bytesReceived.toFloat() / totalBytes else 0f
+          if (bytesReceived - lastEventAt >= eventThreshold) {
+            lastEventAt = bytesReceived
+            sendEvent(
+              "onDownloadProgress", mapOf(
+                "bytesReceived" to bytesReceived,
+                "totalBytes" to totalBytes,
+                "fraction" to if (totalBytes > 0) bytesReceived.toFloat() / totalBytes else 0f
+              )
             )
-          )
+          }
         }
+        // Always send a final event at 100%
+        sendEvent(
+          "onDownloadProgress", mapOf(
+            "bytesReceived" to bytesReceived,
+            "totalBytes" to totalBytes,
+            "fraction" to if (totalBytes > 0) bytesReceived.toFloat() / totalBytes else 1f
+          )
+        )
       }
     }
 
@@ -200,10 +219,14 @@ class ExpoMediaPipeImageGenModule : Module() {
     )
 
     generator.use {
-      it.setInputs(prompt, iterations, seed)
-      val result = it.execute(false) // false = return final image only (no step previews)
-      val bitmap = result.generatedImage()
+      // Use the one-shot generate() API which runs all diffusion steps internally
+      // and always returns the final image. The step-by-step setInputs/execute loop
+      // requires calling execute() once per step with showResult=true only on the last.
+      val result = it.generate(prompt, iterations, seed)
+      val mpImage = result?.generatedImage()
         ?: throw IllegalStateException("Generation returned null image")
+      val bitmap = BitmapExtractor.extract(mpImage)
+        ?: throw IllegalStateException("Failed to extract Bitmap from MPImage")
 
       // Encode to PNG base64
       val bos = ByteArrayOutputStream()

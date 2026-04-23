@@ -8,6 +8,7 @@
 import { requireOptionalNativeModule, EventEmitter } from 'expo-modules-core';
 
 const nativeModule = requireOptionalNativeModule('ExpoMediaPipeImageGen');
+console.log('[MediaPipe] nativeModule:', nativeModule, 'isPresent:', !!nativeModule);
 
 type MediaPipeEvents = {
   onDownloadProgress: (event: { bytesReceived: number; totalBytes: number; fraction: number }) => void;

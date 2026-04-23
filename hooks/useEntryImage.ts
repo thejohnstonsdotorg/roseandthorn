@@ -54,7 +54,10 @@ export function useEntryImage(options: UseEntryImageOptions): UseEntryImageResul
   // Check MediaPipe availability once on mount
   useEffect(() => {
     if (aiImagesEnabled) {
-      isAvailable('mediapipe').then(setMediaPipeAvailable);
+      isAvailable('mediapipe').then((avail) => {
+        console.log('[useEntryImage] mediaPipeAvailable:', avail);
+        setMediaPipeAvailable(avail);
+      });
     }
   }, [aiImagesEnabled]);
 
@@ -73,8 +76,8 @@ export function useEntryImage(options: UseEntryImageOptions): UseEntryImageResul
       });
       setImageUri(result.uri);
       onNewImage?.(result.uri, result.seed, result.source, result.prompt);
-    } catch {
-      // AI failed — keep the existing procedural image, show no error to user
+    } catch (err) {
+      console.error('[useEntryImage] AI generation failed:', err);
     } finally {
       setAiGenerating(false);
     }

@@ -68,6 +68,15 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     const { ExpoMediaPipeImageGen } = await import(
       '../modules/expo-mediapipe-image-gen/src/ExpoMediaPipeImageGenModule'
     );
+
+    // Skip the 1.9 GB download if model files are already present on-device
+    const alreadyDownloaded = await ExpoMediaPipeImageGen.isModelDownloaded();
+    if (alreadyDownloaded) {
+      await setSetting('ai_images_enabled', 'true');
+      set({ aiImagesEnabled: true });
+      return;
+    }
+
     set({ aiModelDownloading: true, aiModelProgress: 0 });
     const sub = ExpoMediaPipeImageGen.addDownloadProgressListener((e) => {
       set({ aiModelProgress: e.fraction });

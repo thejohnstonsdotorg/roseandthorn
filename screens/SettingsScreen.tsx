@@ -91,7 +91,11 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
   return (
     <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
       <View className="pt-12 pb-4 px-6 flex-row items-center">
-        <TouchableOpacity onPress={onBack} className="mr-4">
+        <TouchableOpacity
+          onPress={onBack}
+          hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+          style={{ padding: 8, marginRight: 8 }}
+        >
           <Text className="text-2xl">←</Text>
         </TouchableOpacity>
         <Text className="text-2xl font-bold" style={{ color: theme.colors.text }}>

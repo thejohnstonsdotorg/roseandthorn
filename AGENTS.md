@@ -34,13 +34,98 @@ All planned features, deferred work, and versioned milestones (v1.1 through v2.0
 ```bash
 npm install
 npx expo prebuild --platform android   # regenerate android/ after pulling (gitignored, CNG)
-npx expo run:android                   # build dev client and launch on connected Pixel 9
+npx expo run:android                   # build dev client and launch on connected Pixel 10 Pro
 node_modules/.bin/tsc --noEmit         # type check; must exit 0
 ```
 
 - `android/` and `ios/` are gitignored (Expo CNG). Regenerate with `npx expo prebuild` after pulling.
 - After adding or updating native deps (Skia, Expo Modules), a full `expo run:android` rebuild is required — JS-only reload is not enough.
-- Physical device testing on Pixel 9+ is required — the pass-around UX cannot be validated in a simulator.
+- Physical device testing on Pixel 10 Pro (`adb devices` serial `57150DLCH001ZQ`) is required — the pass-around UX cannot be validated in a simulator.
+
+## Device development workflow
+
+### When to use each build path
+
+| Change type | What to run |
+|-------------|-------------|
+| JS/TS only (screens, stores, hooks, lib) | Start Metro (`npx expo start`), shake device → Reload |
+| Native module Kotlin/Java changed | `./android/gradlew assembleDebug` then `adb install -r` (see below) |
+| New native dep added or `expo-module.config.json` changed | `npx expo prebuild --platform android` then full `npx expo run:android` |
+| `app.json` plugins changed | `npx expo prebuild --platform android` then full `npx expo run:android` |
+
+### Fast native rebuild (preferred for Kotlin-only changes)
+
+Avoids the full Metro/Expo overhead — builds the APK directly and installs it:
+
+```bash
+# Build
+cd android && ./gradlew assembleDebug && cd ..
+
+# Install and launch (device must be connected via USB with ADB debugging on)
+adb -s 57150DLCH001ZQ install -r android/app/build/outputs/apk/debug/app-debug.apk
+adb -s 57150DLCH001ZQ reverse tcp:8081 tcp:8081
+adb -s 57150DLCH001ZQ shell am start -n com.kencjohnston.roseandthorn/.MainActivity
+```
+
+Then start Metro separately if not already running:
+```bash
+npx expo start --port 8081
+```
+
+### Full clean reset (when the device is in an unknown state)
+
+Use this when: the app shows a black screen, JS errors on launch, or you suspect stale native code is installed.
+
+```bash
+# 1. Uninstall the app from the device (also clears internal filesDir)
+adb -s 57150DLCH001ZQ uninstall com.kencjohnston.roseandthorn
+
+# 2. Prebuild to regenerate android/ with current config plugins
+npx expo prebuild --platform android
+
+# 3. Full build and install
+cd android && ./gradlew assembleDebug && cd ..
+adb -s 57150DLCH001ZQ install android/app/build/outputs/apk/debug/app-debug.apk
+adb -s 57150DLCH001ZQ reverse tcp:8081 tcp:8081
+adb -s 57150DLCH001ZQ shell am start -n com.kencjohnston.roseandthorn/.MainActivity
+
+# 4. Start Metro if not running
+npx expo start --port 8081
+```
+
+### Confirming the device has the latest build
+
+```bash
+# Check install timestamp — compare against your last build time
+adb -s 57150DLCH001ZQ shell dumpsys package com.kencjohnston.roseandthorn | grep lastUpdateTime
+
+# Read live JS logs to confirm the app reloaded from Metro
+adb -s 57150DLCH001ZQ logcat "*:S" ReactNativeJS:V
+```
+
+### MediaPipe AI model persistence
+
+The 1.9 GB SD 1.5 model is stored in the app's **external files directory** (`getExternalFilesDir(null)/mediapipe_sd15_model/`). This directory **survives APK reinstalls** — the model does not need to be re-downloaded after a `adb install -r` or `expo run:android`.
+
+The model is **wiped only** by:
+- `adb uninstall com.kencjohnston.roseandthorn` (full uninstall)
+- Settings → Reset All Data (which also disables the AI toggle in SQLite)
+- Manually clearing app storage in Android Settings
+
+If the user has already downloaded the model and the toggle is re-enabled, `startModelDownload()` in `settingsStore.ts` checks `isModelDownloaded()` first and skips the download if the files are present.
+
+### Reading device logs
+
+```bash
+# JS errors and console.log output
+adb -s 57150DLCH001ZQ logcat "*:S" ReactNativeJS:V
+
+# Native crash buffer
+adb -s 57150DLCH001ZQ logcat -b crash
+
+# MediaPipe/GPU logs during generation
+adb -s 57150DLCH001ZQ logcat "*:S" ReactNativeJS:V ImageGenerator:V
+```
 
 ## File map
 
@@ -68,3 +153,6 @@ node_modules/.bin/tsc --noEmit         # type check; must exit 0
 | `lib/imagePrompt.ts` | Converts Rose/Thorn text to a concise image-gen prompt string |
 | `lib/imageGen.ts` | Thin interface for image generation; dispatches to procedural or MediaPipe backend |
 | `modules/expo-mediapipe-image-gen/` | Local Expo Module wrapping MediaPipe Image Generator (opt-in AI backend) |
+| `stores/settingsStore.ts` | Zustand store; AI Images toggle, model download state, SQLite-backed settings |
+| `hooks/useEntryImage.ts` | Orchestrates per-entry image generation; MediaPipe availability check; ✨ regenerate action |
+| `plugins/withProtobufJava.js` | Expo config plugin; substitutes `protobuf-java` for `protobuf-javalite` globally so MediaPipe's `Any$Builder.build()` resolves at runtime |

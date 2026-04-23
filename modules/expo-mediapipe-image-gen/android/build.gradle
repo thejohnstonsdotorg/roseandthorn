@@ -1,36 +1,19 @@
-apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
-apply plugin: 'com.facebook.react'
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
 
 group = 'expo.modules.mediapipeimagegen'
 version = '1.0.0'
 
 android {
-  compileSdkVersion safeExtGet("compileSdkVersion", 35)
   namespace 'expo.modules.mediapipeimagegen'
-
   defaultConfig {
-    minSdkVersion safeExtGet("minSdkVersion", 26)
-    targetSdkVersion safeExtGet("targetSdkVersion", 35)
+    versionCode 1
+    versionName '1.0.0'
   }
-
-  compileOptions {
-    sourceCompatibility JavaVersion.VERSION_11
-    targetCompatibility JavaVersion.VERSION_11
-  }
-
-  kotlinOptions {
-    jvmTarget = JavaVersion.VERSION_11.majorVersion
-  }
-}
-
-repositories {
-  mavenCentral()
-  google()
 }
 
 dependencies {
-  implementation project(':expo-modules-core')
-  implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${kotlinVersion()}"
   implementation 'com.google.mediapipe:tasks-vision-image-generator:0.10.26.1'
 }

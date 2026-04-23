@@ -75,7 +75,8 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
         seed: seed ?? 0,
         prompt,
       };
-    } catch {
+    } catch (err) {
+      console.error('[imageGen] MediaPipe generate failed:', err);
       // MediaPipe unavailable or failed — fall back to procedural silently
       const params: ProceduralArtParams = { text, memberName, seed, mood };
       const result = await generateProceduralArt(params, filename);
