@@ -17,6 +17,8 @@ export type ImageSource = 'procedural' | 'mediapipe' | 'apple-playground';
 export interface GenerateOptions {
   text: string;
   memberName: string;
+  /** The member's chosen emoji avatar — drives the character in AI-generated images */
+  memberEmoji?: string;
   mood: 'rose' | 'thorn';
   /** Stable seed for deterministic output; computed from text+name+date if omitted */
   seed?: number;
@@ -41,9 +43,9 @@ export interface GenerateResult {
  * Callers should not block the UI on this call — fire it after `addEntry`.
  */
 export async function generate(options: GenerateOptions): Promise<GenerateResult> {
-  const { text, memberName, mood, seed, filename } = options;
+  const { text, memberName, memberEmoji, mood, seed, filename } = options;
   const backend = options.backend ?? 'procedural';
-  const prompt = buildImagePrompt(text, mood);
+  const prompt = buildImagePrompt(text, mood, memberEmoji);
 
   if (backend === 'procedural') {
     const params: ProceduralArtParams = { text, memberName, seed, mood };
@@ -58,7 +60,7 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
       const { ExpoMediaPipeImageGen } = await import(
         '../modules/expo-mediapipe-image-gen/src/ExpoMediaPipeImageGenModule'
       );
-      const base64 = await ExpoMediaPipeImageGen.generate(prompt, seed ?? 0, 20);
+      const base64 = await ExpoMediaPipeImageGen.generate(prompt, seed ?? 0, 6);
       // Write base64 to the images dir
       const { documentDirectory, writeAsStringAsync, getInfoAsync, makeDirectoryAsync, EncodingType } =
         await import('expo-file-system/legacy');

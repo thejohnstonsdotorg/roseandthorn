@@ -6,6 +6,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { getDatabase, resetDatabase } from '../db/migrations';
 import { theme } from '../lib/theme';
 import { isNativeModulePresent } from '../modules/expo-mediapipe-image-gen/src/ExpoMediaPipeImageGenModule';
+import { EmojiPicker } from '../components/EmojiPicker';
 
 function DownloadProgressBar({ fraction }: { fraction: number }) {
   const pct = Math.round((fraction ?? 0) * 100);
@@ -37,9 +38,10 @@ interface SettingsScreenProps {
 }
 
 export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
-  const { family, members, addMember, removeMember } = useFamilyStore();
+  const { family, members, addMember, updateMember, removeMember } = useFamilyStore();
   const { aiImagesEnabled, setAiImagesEnabled, aiModelDownloading, aiModelProgress, startModelDownload } = useSettingsStore();
   const [newMemberName, setNewMemberName] = useState('');
+  const [emojiPickerMemberId, setEmojiPickerMemberId] = useState<number | null>(null);
 
   const handleExport = async () => {
     const db = await getDatabase();
@@ -131,10 +133,29 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
                   style={{ backgroundColor: theme.colors.surface }}
                 >
                   <View className="flex-row items-center">
-                    <Text className="text-lg mr-3">{member.avatar_emoji}</Text>
-                    <Text className="text-base" style={{ color: theme.colors.text }}>
-                      {member.name}
-                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setEmojiPickerMemberId(member.id)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: 10,
+                        backgroundColor: theme.colors.roseLight,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 10,
+                      }}
+                    >
+                      <Text style={{ fontSize: 22 }}>{member.avatar_emoji}</Text>
+                    </TouchableOpacity>
+                    <View>
+                      <Text className="text-base" style={{ color: theme.colors.text }}>
+                        {member.name}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: theme.colors.textMuted }}>
+                        Tap to change character
+                      </Text>
+                    </View>
                   </View>
                   <TouchableOpacity onPress={() => removeMember(member.id)}>
                     <Text className="text-lg" style={{ color: theme.colors.rose }}>
@@ -143,6 +164,20 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
                   </TouchableOpacity>
                 </View>
               ))}
+
+              {/* Emoji picker modal */}
+              {emojiPickerMemberId !== null && (() => {
+                const m = members.find((x) => x.id === emojiPickerMemberId);
+                if (!m) return null;
+                return (
+                  <EmojiPicker
+                    visible
+                    current={m.avatar_emoji}
+                    onSelect={(emoji) => updateMember(m.id, { avatar_emoji: emoji })}
+                    onClose={() => setEmojiPickerMemberId(null)}
+                  />
+                );
+              })()}
             </View>
 
             <View className="mb-6">

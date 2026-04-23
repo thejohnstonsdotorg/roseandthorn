@@ -12,6 +12,7 @@ interface ArtworkWithRegenerateProps {
   seed?: number;
   text: string;
   memberName: string;
+  memberEmoji?: string;
   memberId: number;
   mood: 'rose' | 'thorn';
   onNewImage?: (uri: string, seed: number, source: 'procedural' | 'mediapipe' | 'apple-playground', prompt: string) => void;
@@ -22,6 +23,7 @@ function ArtworkWithRegenerate({
   seed,
   text,
   memberName,
+  memberEmoji,
   memberId,
   mood,
   onNewImage,
@@ -32,6 +34,7 @@ function ArtworkWithRegenerate({
     currentSeed: seed,
     text,
     memberName,
+    memberEmoji,
     mood,
     filenameBase,
     onNewImage,
@@ -158,6 +161,7 @@ export function SummaryScreen({ onFinish }: SummaryScreenProps) {
                   seed={entry.roseImageSeed}
                   text={entry.rose}
                   memberName={entry.memberName}
+                  memberEmoji={entry.memberEmoji}
                   memberId={entry.memberId}
                   mood="rose"
                   onNewImage={(uri, seed, source, prompt) => {
@@ -185,6 +189,7 @@ export function SummaryScreen({ onFinish }: SummaryScreenProps) {
                   seed={entry.thornImageSeed}
                   text={entry.thorn}
                   memberName={entry.memberName}
+                  memberEmoji={entry.memberEmoji}
                   memberId={entry.memberId}
                   mood="thorn"
                   onNewImage={(uri, seed, source, prompt) => {

@@ -2,6 +2,12 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useFamilyStore } from '../stores/familyStore';
 import { theme } from '../lib/theme';
+import { EmojiPicker, AVATAR_EMOJIS } from '../components/EmojiPicker';
+
+interface PendingMember {
+  name: string;
+  emoji: string;
+}
 
 interface SetupScreenProps {
   onComplete: () => void;
@@ -10,17 +16,25 @@ interface SetupScreenProps {
 export function SetupScreen({ onComplete }: SetupScreenProps) {
   const [familyName, setFamilyName] = useState('');
   const [memberName, setMemberName] = useState('');
-  const [members, setMembers] = useState<string[]>([]);
+  const [members, setMembers] = useState<PendingMember[]>([]);
+  // Which pending member index is being picked for
+  const [pickerIndex, setPickerIndex] = useState<number | null>(null);
   const { createFamily, addMember } = useFamilyStore();
 
   const addMemberToList = () => {
     if (memberName.trim().length === 0) return;
-    setMembers([...members, memberName.trim()]);
+    // Rotate through the emoji list so each new member gets a distinct default
+    const defaultEmoji = AVATAR_EMOJIS[members.length % AVATAR_EMOJIS.length];
+    setMembers([...members, { name: memberName.trim(), emoji: defaultEmoji }]);
     setMemberName('');
   };
 
   const removeMember = (index: number) => {
     setMembers(members.filter((_, i) => i !== index));
+  };
+
+  const updateEmoji = (index: number, emoji: string) => {
+    setMembers(members.map((m, i) => (i === index ? { ...m, emoji } : m)));
   };
 
   const handleComplete = async () => {
@@ -34,8 +48,8 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
     }
 
     await createFamily(familyName.trim());
-    for (const name of members) {
-      await addMember(name);
+    for (const m of members) {
+      await addMember(m.name, m.emoji);
     }
     onComplete();
   };
@@ -87,25 +101,49 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
         </TouchableOpacity>
       </View>
 
-      {members.map((name, index) => (
+      {members.map((m, index) => (
         <View
           key={index}
           className="flex-row items-center justify-between p-3 rounded-xl mb-2"
           style={{ backgroundColor: theme.colors.surface }}
         >
           <View className="flex-row items-center">
-            <Text className="text-lg mr-3">🙂</Text>
-            <Text className="text-base" style={{ color: theme.colors.text }}>
-              {name}
-            </Text>
+            {/* Tap the emoji badge to pick a different one */}
+            <TouchableOpacity
+              onPress={() => setPickerIndex(index)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                backgroundColor: theme.colors.roseLight,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 10,
+              }}
+            >
+              <Text style={{ fontSize: 22 }}>{m.emoji}</Text>
+            </TouchableOpacity>
+            <View>
+              <Text className="text-base" style={{ color: theme.colors.text }}>{m.name}</Text>
+              <Text style={{ fontSize: 11, color: theme.colors.textMuted }}>Tap to choose character</Text>
+            </View>
           </View>
           <TouchableOpacity onPress={() => removeMember(index)}>
-            <Text className="text-lg" style={{ color: theme.colors.rose }}>
-              ✕
-            </Text>
+            <Text className="text-lg" style={{ color: theme.colors.rose }}>✕</Text>
           </TouchableOpacity>
         </View>
       ))}
+
+      {/* Emoji picker for the selected pending member */}
+      {pickerIndex !== null && (
+        <EmojiPicker
+          visible
+          current={members[pickerIndex]?.emoji ?? '🙂'}
+          onSelect={(emoji) => updateEmoji(pickerIndex, emoji)}
+          onClose={() => setPickerIndex(null)}
+        />
+      )}
 
       <TouchableOpacity
         onPress={handleComplete}

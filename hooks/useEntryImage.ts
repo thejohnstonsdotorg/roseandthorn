@@ -22,6 +22,8 @@ export interface UseEntryImageOptions {
   /** Entry text (rose or thorn content) */
   text: string;
   memberName: string;
+  /** The member's chosen emoji avatar — drives the AI image character */
+  memberEmoji?: string;
   mood: 'rose' | 'thorn';
   /** Unique filename base — caller must make this stable and unique per entry */
   filenameBase: string;
@@ -37,16 +39,17 @@ export interface UseEntryImageResult {
 }
 
 export function useEntryImage(options: UseEntryImageOptions): UseEntryImageResult {
-  const { currentUri, currentSeed, text, memberName, mood, filenameBase, onNewImage } = options;
+  const { currentUri, currentSeed, text, memberName, memberEmoji, mood, filenameBase, onNewImage } = options;
   const { aiImagesEnabled } = useSettingsStore();
 
   const [imageUri, setImageUri] = useState<string | undefined>(currentUri);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [mediaPipeAvailable, setMediaPipeAvailable] = useState(false);
 
-  // Sync external URI changes (e.g. when procedural art finishes generating)
+  // Sync external URI changes (e.g. when procedural art finishes generating,
+  // or when a parent component persists a new URI back to us)
   useEffect(() => {
-    if (currentUri && !imageUri) {
+    if (currentUri) {
       setImageUri(currentUri);
     }
   }, [currentUri]);
@@ -61,7 +64,9 @@ export function useEntryImage(options: UseEntryImageOptions): UseEntryImageResul
     }
   }, [aiImagesEnabled]);
 
-  const showAiRegenerate = aiImagesEnabled && mediaPipeAvailable && !aiGenerating;
+  // Button is visible whenever AI is enabled and available — including while generating
+  // (aiGenerating is passed through so EntryArtwork can show a spinner and disable taps)
+  const showAiRegenerate = aiImagesEnabled && mediaPipeAvailable;
 
   const regenerateWithAI = async () => {
     if (aiGenerating) return;
@@ -70,6 +75,7 @@ export function useEntryImage(options: UseEntryImageOptions): UseEntryImageResul
       const result = await generate({
         text,
         memberName,
+        memberEmoji,
         mood,
         backend: 'mediapipe',
         filename: `${filenameBase}-mediapipe.png`,

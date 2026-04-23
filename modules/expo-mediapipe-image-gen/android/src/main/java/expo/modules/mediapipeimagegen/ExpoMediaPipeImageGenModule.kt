@@ -40,6 +40,13 @@ class ExpoMediaPipeImageGenModule : Module() {
     const val MODEL_DIR_NAME = "mediapipe_sd15_model"
     const val MIN_RAM_GB = 6L
     const val OUTPUT_IMAGE_SIZE = 512
+
+    // Singleton ImageGenerator — kept alive between calls to avoid paying the
+    // 3–8 s model-load cost on every generation. Invalidated when the model
+    // directory changes (e.g. after a fresh download).
+    @Volatile private var cachedGenerator: ImageGenerator? = null
+    @Volatile private var cachedModelPath: String? = null
+    private val generatorLock = Any()
   }
 
   override fun definition() = ModuleDefinition {
@@ -205,33 +212,50 @@ class ExpoMediaPipeImageGenModule : Module() {
 
   // ─── Private: MediaPipe inference ───────────────────────────────────────
 
-  private fun runGeneration(prompt: String, seed: Int, iterations: Int): String {
+  /**
+   * Returns the cached [ImageGenerator] for the current model directory,
+   * creating it if necessary. Synchronized so concurrent calls don't double-init.
+   */
+  private fun getOrCreateGenerator(): ImageGenerator {
     val dir = modelDir()
+    val modelPath = dir.absolutePath
+    // Fast path: already cached for this model path
+    cachedGenerator?.let { if (cachedModelPath == modelPath) return it }
+    // Slow path: create and cache
+    synchronized(generatorLock) {
+      val existing = cachedGenerator
+      if (existing != null && cachedModelPath == modelPath) return existing
+      // Close stale instance before replacing
+      try { cachedGenerator?.close() } catch (_: Exception) {}
+      val ctx = appContext.reactContext ?: throw IllegalStateException("No context")
+      val options = ImageGeneratorOptions.builder()
+        .setImageGeneratorModelDirectory(modelPath)
+        .build()
+      val generator = ImageGenerator.createFromOptions(ctx, options)
+      cachedGenerator = generator
+      cachedModelPath = modelPath
+      return generator
+    }
+  }
+
+  private fun runGeneration(prompt: String, seed: Int, iterations: Int): String {
     if (!isModelPresent()) throw IllegalStateException("Model not downloaded")
 
-    val options = ImageGeneratorOptions.builder()
-      .setImageGeneratorModelDirectory(dir.absolutePath)
-      .build()
+    val generator = getOrCreateGenerator()
 
-    val generator = ImageGenerator.createFromOptions(
-      appContext.reactContext ?: throw IllegalStateException("No context"),
-      options
-    )
+    // Use the one-shot generate() API which runs all diffusion steps internally
+    // and always returns the final image. The step-by-step setInputs/execute loop
+    // requires calling execute() once per step with showResult=true only on the last.
+    val result = generator.generate(prompt, iterations, seed)
+    val mpImage = result?.generatedImage()
+      ?: throw IllegalStateException("Generation returned null image")
+    val bitmap = BitmapExtractor.extract(mpImage)
+      ?: throw IllegalStateException("Failed to extract Bitmap from MPImage")
 
-    generator.use {
-      // Use the one-shot generate() API which runs all diffusion steps internally
-      // and always returns the final image. The step-by-step setInputs/execute loop
-      // requires calling execute() once per step with showResult=true only on the last.
-      val result = it.generate(prompt, iterations, seed)
-      val mpImage = result?.generatedImage()
-        ?: throw IllegalStateException("Generation returned null image")
-      val bitmap = BitmapExtractor.extract(mpImage)
-        ?: throw IllegalStateException("Failed to extract Bitmap from MPImage")
-
-      // Encode to PNG base64
-      val bos = ByteArrayOutputStream()
-      bitmap.compress(Bitmap.CompressFormat.PNG, 100, bos)
-      return Base64.encodeToString(bos.toByteArray(), Base64.NO_WRAP)
-    }
+    // Encode to JPEG (quality 85) — significantly faster than PNG compression
+    // and indistinguishable at display size. File size is also ~8× smaller.
+    val bos = ByteArrayOutputStream()
+    bitmap.compress(Bitmap.CompressFormat.JPEG, 85, bos)
+    return Base64.encodeToString(bos.toByteArray(), Base64.NO_WRAP)
   }
 }

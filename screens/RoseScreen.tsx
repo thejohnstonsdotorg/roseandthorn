@@ -45,6 +45,7 @@ export function RoseScreen({ onComplete }: RoseScreenProps) {
     generate({
       text: content,
       memberName: member.name,
+      memberEmoji: member.avatar_emoji,
       mood: 'rose',
       filename: tempFilename,
     })

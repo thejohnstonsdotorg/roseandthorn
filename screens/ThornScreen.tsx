@@ -37,6 +37,7 @@ export function ThornScreen({ onComplete }: ThornScreenProps) {
     generate({
       text: content,
       memberName: member.name,
+      memberEmoji: member.avatar_emoji,
       mood: 'thorn',
       filename: tempFilename,
     })

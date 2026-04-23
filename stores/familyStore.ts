@@ -20,6 +20,7 @@ interface FamilyState {
   loadFamily: () => Promise<void>;
   createFamily: (name: string, themeColor?: string) => Promise<void>;
   addMember: (name: string, avatarEmoji?: string) => Promise<void>;
+  updateMember: (id: number, changes: Partial<Pick<Member, 'avatar_emoji'>>) => Promise<void>;
   removeMember: (id: number) => Promise<void>;
 }
 
@@ -67,6 +68,16 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
     );
     const member: Member = { id: result.lastInsertRowId, name, avatar_emoji: avatarEmoji };
     set((state) => ({ members: [...state.members, member] }));
+  },
+
+  async updateMember(id: number, changes: Partial<Pick<Member, 'avatar_emoji'>>) {
+    const db = await getDatabase();
+    if (changes.avatar_emoji !== undefined) {
+      await db.runAsync('UPDATE member SET avatar_emoji = ? WHERE id = ?', [changes.avatar_emoji, id]);
+    }
+    set((state) => ({
+      members: state.members.map((m) => (m.id === id ? { ...m, ...changes } : m)),
+    }));
   },
 
   async removeMember(id: number) {
