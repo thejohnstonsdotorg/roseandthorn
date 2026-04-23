@@ -32,6 +32,10 @@ CREATE TABLE IF NOT EXISTS rose (
   deepening_prompt TEXT,
   deepening_answer TEXT,
   created_at INTEGER NOT NULL,
+  image_uri TEXT,
+  image_seed INTEGER,
+  image_source TEXT CHECK(image_source IN ('procedural', 'mediapipe', 'apple-playground')),
+  image_prompt TEXT,
   FOREIGN KEY (session_id) REFERENCES session(id),
   FOREIGN KEY (member_id) REFERENCES member(id)
 );
@@ -44,7 +48,16 @@ CREATE TABLE IF NOT EXISTS thorn (
   deepening_prompt TEXT,
   deepening_answer TEXT,
   created_at INTEGER NOT NULL,
+  image_uri TEXT,
+  image_seed INTEGER,
+  image_source TEXT CHECK(image_source IN ('procedural', 'mediapipe', 'apple-playground')),
+  image_prompt TEXT,
   FOREIGN KEY (session_id) REFERENCES session(id),
   FOREIGN KEY (member_id) REFERENCES member(id)
+);
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
 );
 `;

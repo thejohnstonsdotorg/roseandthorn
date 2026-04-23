@@ -4,6 +4,7 @@ import { useSessionStore } from '../stores/sessionStore';
 import { getRandomPrompt, thornPrompts } from '../lib/prompts';
 import { DeepeningPrompt } from '../components/DeepeningPrompt';
 import { theme } from '../lib/theme';
+import { generate } from '../lib/imageGen';
 
 interface ThornScreenProps {
   onComplete: () => void;
@@ -30,6 +31,27 @@ export function ThornScreen({ onComplete }: ThornScreenProps) {
       thornPrompt: prompt.text,
       thornAnswer: answer,
     });
+
+    // Fire-and-forget: generate procedural art in the background.
+    const tempFilename = `thorn-pending-${member.id}-${Date.now()}-procedural.png`;
+    generate({
+      text: content,
+      memberName: member.name,
+      mood: 'thorn',
+      filename: tempFilename,
+    })
+      .then((result) => {
+        updateLastEntry({
+          thornImageUri: result.uri,
+          thornImageSeed: result.seed,
+          thornImageSource: result.source,
+          thornImagePrompt: result.prompt,
+        });
+      })
+      .catch(() => {
+        // Artwork generation failure is non-fatal
+      });
+
     onComplete();
   };
 

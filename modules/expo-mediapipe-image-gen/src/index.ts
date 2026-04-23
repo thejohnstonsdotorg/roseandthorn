@@ -1,0 +1,1 @@
+export { ExpoMediaPipeImageGen } from './ExpoMediaPipeImageGenModule';

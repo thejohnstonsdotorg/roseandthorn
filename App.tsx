@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import './global.css';
+import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View } from 'react-native';
@@ -12,11 +13,17 @@ import { HistoryScreen } from './screens/HistoryScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { PassPrompt } from './components/PassPrompt';
 import { useSessionStore } from './stores/sessionStore';
+import { useSettingsStore } from './stores/settingsStore';
 import { theme } from './lib/theme';
 
 export default function App() {
   const [screen, setScreen] = useState<'home' | 'setup' | 'sessionStart' | 'rose' | 'thorn' | 'summary' | 'history' | 'settings'>('home');
   const { presentMembers, currentIndex, nextMember, resetSession } = useSessionStore();
+  const { loadSettings } = useSettingsStore();
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
   const [showPassPrompt, setShowPassPrompt] = useState(false);
   const [passTo, setPassTo] = useState<{ name: string; emoji: string } | null>(null);
 

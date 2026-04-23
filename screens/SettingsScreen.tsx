@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Share } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Share, Switch } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import { useFamilyStore } from '../stores/familyStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import { getDatabase, resetDatabase } from '../db/migrations';
 import { theme } from '../lib/theme';
 
@@ -12,6 +13,7 @@ interface SettingsScreenProps {
 
 export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
   const { family, members, addMember, removeMember } = useFamilyStore();
+  const { aiImagesEnabled, setAiImagesEnabled } = useSettingsStore();
   const [newMemberName, setNewMemberName] = useState('');
 
   const handleExport = async () => {
@@ -40,10 +42,12 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
     setNewMemberName('');
   };
 
+  const { resetSettings } = useSettingsStore();
+
   const handleReset = () => {
     Alert.alert(
       'Reset Everything?',
-      'This will delete all family data and history. This cannot be undone.',
+      'This will delete all family data, history, and app settings. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -51,6 +55,7 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
           style: 'destructive',
           onPress: async () => {
             await resetDatabase();
+            await resetSettings();
             onResetFamily();
           },
         },
@@ -138,6 +143,56 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
                 >
                   <Text className="text-white font-bold text-lg">+</Text>
                 </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* AI Images toggle */}
+            <View className="mb-6">
+              <Text className="text-sm font-semibold mb-2" style={{ color: theme.colors.textMuted }}>
+                Generative Imagery
+              </Text>
+              <View
+                className="p-4 rounded-2xl"
+                style={{ backgroundColor: theme.colors.surface }}
+              >
+                <View className="flex-row items-center justify-between mb-2">
+                  <Text className="text-base font-semibold" style={{ color: theme.colors.text }}>
+                    AI Images
+                  </Text>
+                  <Switch
+                    value={aiImagesEnabled}
+                    onValueChange={(value) => {
+                      if (value && !aiImagesEnabled) {
+                        // Show consent dialog before enabling
+                        Alert.alert(
+                          'Enable AI Images?',
+                          'This downloads about 1.5 GB of AI model files to your device.\n\n'
+                          + 'All generation stays on your phone — nothing is sent to Google or any other server.\n\n'
+                          + 'Downloading uses your data plan unless you are on Wi-Fi.\n\n'
+                          + 'Images are generated using Stable Diffusion 1.5 via the MediaPipe runtime.',
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Enable & Download',
+                              onPress: () => {
+                                setAiImagesEnabled(true);
+                              },
+                            },
+                          ]
+                        );
+                      } else {
+                        setAiImagesEnabled(value);
+                      }
+                    }}
+                    trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                    thumbColor={theme.colors.surface}
+                  />
+                </View>
+                <Text className="text-sm" style={{ color: theme.colors.textMuted }}>
+                  {aiImagesEnabled
+                    ? 'AI-generated artwork enabled. Tap ✨ on any entry to regenerate with AI.'
+                    : 'Off — procedural artwork is used for all entries. No download required.'}
+                </Text>
               </View>
             </View>
 

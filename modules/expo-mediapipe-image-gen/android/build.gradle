@@ -1,0 +1,39 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'com.facebook.react'
+
+group = 'expo.modules.mediapipeimagegen'
+version = '1.0.0'
+
+android {
+  compileSdkVersion safeExtGet("compileSdkVersion", 35)
+  namespace 'expo.modules.mediapipeimagegen'
+
+  defaultConfig {
+    minSdkVersion safeExtGet("minSdkVersion", 26)
+    targetSdkVersion safeExtGet("targetSdkVersion", 35)
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_11
+    targetCompatibility JavaVersion.VERSION_11
+  }
+
+  kotlinOptions {
+    jvmTarget = JavaVersion.VERSION_11.majorVersion
+  }
+}
+
+repositories {
+  mavenCentral()
+  google()
+}
+
+dependencies {
+  implementation project(':expo-modules-core')
+  implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${kotlinVersion()}"
+
+  // MediaPipe Image Generator — currently commented out until model conversion is done.
+  // Uncomment when the converted SD 1.5 model is available and you're ready to test.
+  // implementation 'com.google.mediapipe:tasks-vision-image-generator:0.10.21'
+}

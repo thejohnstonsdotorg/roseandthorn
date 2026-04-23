@@ -4,13 +4,14 @@ import { useSessionStore } from '../stores/sessionStore';
 import { getRandomPrompt, rosePrompts } from '../lib/prompts';
 import { DeepeningPrompt } from '../components/DeepeningPrompt';
 import { theme } from '../lib/theme';
+import { generate } from '../lib/imageGen';
 
 interface RoseScreenProps {
   onComplete: () => void;
 }
 
 export function RoseScreen({ onComplete }: RoseScreenProps) {
-  const { presentMembers, currentIndex, markRosePromptUsed, usedRosePrompts, addEntry } = useSessionStore();
+  const { presentMembers, currentIndex, markRosePromptUsed, usedRosePrompts, addEntry, updateLastEntry } = useSessionStore();
   const member = presentMembers[currentIndex];
   const [content, setContent] = useState('');
   const [showPrompt, setShowPrompt] = useState(false);
@@ -36,6 +37,29 @@ export function RoseScreen({ onComplete }: RoseScreenProps) {
       thornPrompt: '',
       thornAnswer: '',
     });
+
+    // Fire-and-forget: generate procedural art in the background.
+    // The session ID is not available yet (it's assigned when the session is saved),
+    // so we use a temp filename keyed on memberId + timestamp.
+    const tempFilename = `rose-pending-${member.id}-${Date.now()}-procedural.png`;
+    generate({
+      text: content,
+      memberName: member.name,
+      mood: 'rose',
+      filename: tempFilename,
+    })
+      .then((result) => {
+        updateLastEntry({
+          roseImageUri: result.uri,
+          roseImageSeed: result.seed,
+          roseImageSource: result.source,
+          roseImagePrompt: result.prompt,
+        });
+      })
+      .catch(() => {
+        // Artwork generation failure is non-fatal — session continues without image
+      });
+
     onComplete();
   };
 

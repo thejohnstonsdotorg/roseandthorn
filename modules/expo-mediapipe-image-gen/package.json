@@ -1,0 +1,19 @@
+{
+  "name": "expo-mediapipe-image-gen",
+  "version": "1.0.0",
+  "description": "Local Expo Module wrapping MediaPipe Image Generator (Stable Diffusion 1.5 on-device, Android)",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "private": true,
+  "expo": {
+    "autolinking": {
+      "android": {
+        "sourceDir": "android"
+      }
+    }
+  },
+  "peerDependencies": {
+    "expo": "*",
+    "expo-modules-core": "*"
+  }
+}

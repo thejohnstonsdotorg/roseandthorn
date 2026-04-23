@@ -1,15 +1,60 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
-import { useSessionStore } from '../stores/sessionStore';
+import { useSessionStore, SessionEntry } from '../stores/sessionStore';
 import { getDatabase } from '../db/migrations';
 import { theme } from '../lib/theme';
+import { EntryArtwork } from '../components/EntryArtwork';
+import { useEntryImage } from '../hooks/useEntryImage';
+
+// Sub-component: wraps a single rose or thorn artwork with the regenerate hook
+interface ArtworkWithRegenerateProps {
+  imageUri?: string;
+  seed?: number;
+  text: string;
+  memberName: string;
+  memberId: number;
+  mood: 'rose' | 'thorn';
+  onNewImage?: (uri: string, seed: number, source: 'procedural' | 'mediapipe' | 'apple-playground', prompt: string) => void;
+}
+
+function ArtworkWithRegenerate({
+  imageUri,
+  seed,
+  text,
+  memberName,
+  memberId,
+  mood,
+  onNewImage,
+}: ArtworkWithRegenerateProps) {
+  const filenameBase = `${mood}-summary-${memberId}-${Date.now()}`;
+  const { imageUri: liveUri, aiGenerating, showAiRegenerate, regenerateWithAI } = useEntryImage({
+    currentUri: imageUri,
+    currentSeed: seed,
+    text,
+    memberName,
+    mood,
+    filenameBase,
+    onNewImage,
+  });
+
+  return (
+    <EntryArtwork
+      imageUri={liveUri}
+      label={`${memberName}'s ${mood} artwork`}
+      size={240}
+      showAiRegenerate={showAiRegenerate}
+      onRegenerateWithAI={regenerateWithAI}
+      aiGenerating={aiGenerating}
+    />
+  );
+}
 
 interface SummaryScreenProps {
   onFinish: () => void;
 }
 
 export function SummaryScreen({ onFinish }: SummaryScreenProps) {
-  const { entries } = useSessionStore();
+  const { entries, updateLastEntry } = useSessionStore();
   const [word, setWord] = useState('');
   const [saved, setSaved] = useState(false);
 
@@ -33,14 +78,40 @@ export function SummaryScreen({ onFinish }: SummaryScreenProps) {
     for (const entry of entries) {
       if (entry.rose) {
         await db.runAsync(
-          'INSERT INTO rose (session_id, member_id, content, deepening_prompt, deepening_answer, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-          [sessionId, entry.memberId, entry.rose, entry.rosePrompt, entry.roseAnswer, now]
+          `INSERT INTO rose (session_id, member_id, content, deepening_prompt, deepening_answer, created_at,
+           image_uri, image_seed, image_source, image_prompt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            sessionId,
+            entry.memberId,
+            entry.rose,
+            entry.rosePrompt,
+            entry.roseAnswer,
+            now,
+            entry.roseImageUri ?? null,
+            entry.roseImageSeed ?? null,
+            entry.roseImageSource ?? null,
+            entry.roseImagePrompt ?? null,
+          ]
         );
       }
       if (entry.thorn) {
         await db.runAsync(
-          'INSERT INTO thorn (session_id, member_id, content, deepening_prompt, deepening_answer, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-          [sessionId, entry.memberId, entry.thorn, entry.thornPrompt, entry.thornAnswer, now]
+          `INSERT INTO thorn (session_id, member_id, content, deepening_prompt, deepening_answer, created_at,
+           image_uri, image_seed, image_source, image_prompt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            sessionId,
+            entry.memberId,
+            entry.thorn,
+            entry.thornPrompt,
+            entry.thornAnswer,
+            now,
+            entry.thornImageUri ?? null,
+            entry.thornImageSeed ?? null,
+            entry.thornImageSource ?? null,
+            entry.thornImagePrompt ?? null,
+          ]
         );
       }
     }
@@ -70,28 +141,62 @@ export function SummaryScreen({ onFinish }: SummaryScreenProps) {
             className="p-4 rounded-2xl mb-3"
             style={{ backgroundColor: theme.colors.surface }}
           >
-            <View className="flex-row items-center mb-2">
+            <View className="flex-row items-center mb-3">
               <Text className="text-2xl mr-2">{entry.memberEmoji}</Text>
               <Text className="text-lg font-bold" style={{ color: theme.colors.text }}>
                 {entry.memberName}
               </Text>
             </View>
+
             {entry.rose ? (
-              <View className="mb-2">
-                <Text className="text-sm font-semibold" style={{ color: theme.colors.rose }}>
+              <View className="mb-3">
+                <Text className="text-sm font-semibold mb-1" style={{ color: theme.colors.rose }}>
                   Rose
                 </Text>
-                <Text className="text-base" style={{ color: theme.colors.text }}>
+                <ArtworkWithRegenerate
+                  imageUri={entry.roseImageUri}
+                  seed={entry.roseImageSeed}
+                  text={entry.rose}
+                  memberName={entry.memberName}
+                  memberId={entry.memberId}
+                  mood="rose"
+                  onNewImage={(uri, seed, source, prompt) => {
+                    updateLastEntry({
+                      roseImageUri: uri,
+                      roseImageSeed: seed,
+                      roseImageSource: source,
+                      roseImagePrompt: prompt,
+                    });
+                  }}
+                />
+                <Text className="text-base mt-2" style={{ color: theme.colors.text }}>
                   {entry.rose}
                 </Text>
               </View>
             ) : null}
+
             {entry.thorn ? (
               <View>
-                <Text className="text-sm font-semibold" style={{ color: theme.colors.emerald }}>
+                <Text className="text-sm font-semibold mb-1" style={{ color: theme.colors.emerald }}>
                   Thorn
                 </Text>
-                <Text className="text-base" style={{ color: theme.colors.text }}>
+                <ArtworkWithRegenerate
+                  imageUri={entry.thornImageUri}
+                  seed={entry.thornImageSeed}
+                  text={entry.thorn}
+                  memberName={entry.memberName}
+                  memberId={entry.memberId}
+                  mood="thorn"
+                  onNewImage={(uri, seed, source, prompt) => {
+                    updateLastEntry({
+                      thornImageUri: uri,
+                      thornImageSeed: seed,
+                      thornImageSource: source,
+                      thornImagePrompt: prompt,
+                    });
+                  }}
+                />
+                <Text className="text-base mt-2" style={{ color: theme.colors.text }}>
                   {entry.thorn}
                 </Text>
               </View>

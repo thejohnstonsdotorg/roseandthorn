@@ -40,12 +40,16 @@ A React Native (Expo) mobile app designed for the dinner table. One phone is pas
 ### Stack
 | Layer | Choice | Rationale |
 |-------|--------|-----------|
-| Framework | Expo (React Native) | Fastest path to iOS/Android, excellent dev experience, easy QR previews |
+| Framework | Expo (React Native) + dev client | Fastest path to iOS/Android; Skia + local modules require `expo prebuild` (left Expo Go for v1.4) |
 | Navigation | Imperative screen router (`useState` in `App.tsx`) | Keeps pass-prompt overlay logic simple; no declarative stack needed for MVP |
 | State | Zustand | Lightweight, no boilerplate, works offline |
 | Storage | `expo-sqlite` | Native SQLite, zero-config in Expo, handles relational data well |
 | Styling | NativeWind (Tailwind for RN) | Rapid UI development, consistent design system |
 | Haptics | `expo-haptics` | Subtle physical feedback enhances the ritual feel (v1.1) |
+| Graphics | `@shopify/react-native-skia` | Procedural generative art (v1.4); deterministic Skia canvas for entry artwork |
+| Image storage | `expo-file-system` | PNG blobs for generated images; only file:// URI stored in SQLite (v1.4) |
+| Image display | `expo-image` | Cached, efficient image rendering for artwork in History/Summary (v1.4) |
+| AI image gen | `modules/expo-mediapipe-image-gen` | Custom local Expo Module wrapping MediaPipe SD 1.5; opt-in Android only (v1.4) |
 
 ### Data Model (SQLite)
 ```
@@ -76,7 +80,7 @@ Thorn
 
 ### Completed
 - [x] Bootstrap Expo project with TypeScript template
-- [x] Install dependencies: `expo-sqlite`, `expo-haptics`, `expo-sharing`, `expo-barcode-scanner`, `zustand`, `nativewind`, `lucide-react-native`
+- [x] Install dependencies: `expo-sqlite`, `expo-haptics`, `expo-sharing`, `zustand`, `nativewind`, `lucide-react-native`
 - [x] Create directory structure and all core files
 - [x] 8 screens: Home, Setup, SessionStart, Rose, Thorn, Summary, History, Settings
 - [x] `PassPrompt` component (full-screen phone-handoff overlay)
@@ -98,7 +102,7 @@ Thorn
 - **Imperative router is intentional.** `App.tsx` uses a `useState` string union (`'home' | 'setup' | ...`) and a `renderScreen()` switch. Do not refactor to `<Stack.Navigator>` — it would complicate the `PassPrompt` overlay logic.
 - **Rose → Thorn entry lifecycle split:** `RoseScreen` calls `addEntry()` (partial entry, rose fields only). `ThornScreen` calls `updateLastEntry()` to fill in thorn fields on the same entry. This coupling must be preserved if screen order changes.
 - **NativeWind className LSP errors** on React Native elements are false positives — the LSP doesn't pick up NativeWind's type augmentations. `tsc --noEmit` is clean and is the source of truth.
-- **Physical device testing is critical.** The pass-around UX cannot be validated on a simulator. Use `npx expo start` + Expo Go.
+- **Physical device testing is critical.** The pass-around UX cannot be validated on a simulator. Since v1.4, requires dev client via `npx expo run:android` (Expo Go no longer works — Skia requires a native build).
 
 ---
 
@@ -109,11 +113,11 @@ Thorn
 - [ ] Haptic "pass" heartbeat when handing the phone to the next person
 - [ ] Streak counter: "You've shared 5 nights in a row!"
 - [ ] Voice-to-text input (`expo-speech` or native module)
-- [ ] Photo attachment per Rose/Thorn (small thumbnail, stored locally)
+- [ ] ~~Photo attachment per Rose/Thorn~~ → superseded by v1.4 Generative Imagery (AI-generated or procedural art per entry)
 
 ### v1.2 — Multi-Device Join
 - [ ] QR code export with larger data capacity (chunked QRs)
-- [ ] Import via camera on second phone (`expo-barcode-scanner` already installed)
+- [ ] Import via camera on second phone (`expo-camera`)
 - [ ] Conflict resolution: simple "last-write-wins" for session data
 
 ### v1.3 — Richer Reflections
@@ -121,6 +125,22 @@ Thorn
 - [ ] Mood trend chart (simple line graph over time)
 - [ ] Custom family prompts: let users add their own deepening questions
 - [ ] "Gratitude jar": collect small appreciations between dinner sessions
+
+### v1.4 — Generative Imagery
+- [x] `lib/proceduralArt.ts` — deterministic Skia-based art per entry; palette biased by mood (rose: amber/warm, thorn: emerald/cool); seed from member name + text + date
+- [x] `lib/imagePrompt.ts` — converts Rose/Thorn text to a concise image-gen prompt string
+- [x] `lib/imageGen.ts` — thin interface for image generation; dispatches to procedural or MediaPipe backend; swappable for future LiteRT-LM backend
+- [x] `components/EntryArtwork.tsx` — renders procedural art PNG; "✨ Regenerate with AI" button if MediaPipe available
+- [x] DB migration layer (`PRAGMA user_version`) + image columns on `rose` and `thorn` tables (`image_uri`, `image_seed`, `image_source`, `image_prompt`)
+- [x] `modules/expo-mediapipe-image-gen/` — local Expo Module skeleton (Kotlin + TS bridge); model download and generate() stubbed pending SD 1.5 model conversion (see module TODO comments)
+- [x] Settings → "AI Images" toggle: off by default, explicit consent with 1.5 GB download warning
+- [x] `SummaryScreen` — display entry artwork alongside text; ✨ regenerate button per entry
+- [x] `HistoryScreen` — thumbnail artwork per session entry
+- [x] `hooks/useEntryImage.ts` — orchestrates image generation and AI regeneration per entry
+- [x] `stores/settingsStore.ts` — SQLite-backed settings store for AI Images preference
+- [ ] MediaPipe model download implementation (requires SD 1.5 EMA model conversion + hosting) (v1.4.1)
+- [ ] 6-month image purge policy (v1.4.1)
+- [ ] Export images in JSON export (v1.4.1)
 
 ### v2.0 — Connected Family
 - [ ] Optional end-to-end encrypted cloud backup (no accounts, just a family key)
@@ -133,8 +153,9 @@ Thorn
 ## Confirmed Decisions
 1. **Voice Input:** Text input only for MVP. Voice-to-text deferred to v1.1.
 2. **Export Security:** Zero friction — plain JSON export, no encryption or passphrase.
-3. **Photo Attachments:** Deferred to v1.1.
+3. **Photo Attachments:** Deferred to v1.1; now superseded by v1.4 Generative Imagery.
 4. **GitHub Repo:** `thejohnstonsdotorg/roseandthorn` (note: org is `thejohnstonsdotorg`, not `johnstonsdotorg`).
+5. **Generative Imagery:** Procedural Skia art default + opt-in on-device Stable Diffusion 1.5 via MediaPipe. AI off by default. Cloud image APIs explicitly rejected — offline-first invariant preserved. When LiteRT-LM ships a first-party image generation model, swap the backend behind `lib/imageGen.ts` without schema or UI changes.
 
 ---
 

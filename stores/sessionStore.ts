@@ -7,9 +7,17 @@ export interface SessionEntry {
   rose: string;
   rosePrompt: string;
   roseAnswer: string;
+  roseImageUri?: string;
+  roseImageSeed?: number;
+  roseImageSource?: 'procedural' | 'mediapipe' | 'apple-playground';
+  roseImagePrompt?: string;
   thorn: string;
   thornPrompt: string;
   thornAnswer: string;
+  thornImageUri?: string;
+  thornImageSeed?: number;
+  thornImageSource?: 'procedural' | 'mediapipe' | 'apple-playground';
+  thornImagePrompt?: string;
 }
 
 interface SessionState {
