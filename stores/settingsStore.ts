@@ -24,6 +24,7 @@ interface SettingsState {
   loadSettings: () => Promise<void>;
   setAiImagesEnabled: (enabled: boolean) => Promise<void>;
   setAiModelDownloading: (downloading: boolean, progress?: number | null) => void;
+  startModelDownload: () => Promise<void>;
   resetSettings: () => Promise<void>;
 }
 
@@ -61,6 +62,26 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   async setAiImagesEnabled(enabled: boolean) {
     await setSetting('ai_images_enabled', enabled ? 'true' : 'false');
     set({ aiImagesEnabled: enabled });
+  },
+
+  async startModelDownload() {
+    const { ExpoMediaPipeImageGen } = await import(
+      '../modules/expo-mediapipe-image-gen/src/ExpoMediaPipeImageGenModule'
+    );
+    set({ aiModelDownloading: true, aiModelProgress: 0 });
+    const sub = ExpoMediaPipeImageGen.addDownloadProgressListener((e) => {
+      set({ aiModelProgress: e.fraction });
+    });
+    try {
+      await ExpoMediaPipeImageGen.downloadModel();
+      await setSetting('ai_images_enabled', 'true');
+      set({ aiImagesEnabled: true, aiModelDownloading: false, aiModelProgress: null });
+    } catch (err) {
+      set({ aiModelDownloading: false, aiModelProgress: null });
+      throw err;
+    } finally {
+      sub.remove();
+    }
   },
 
   setAiModelDownloading(downloading: boolean, progress: number | null = null) {

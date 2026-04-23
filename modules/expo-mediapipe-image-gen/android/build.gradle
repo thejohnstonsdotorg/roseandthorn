@@ -32,8 +32,5 @@ repositories {
 dependencies {
   implementation project(':expo-modules-core')
   implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${kotlinVersion()}"
-
-  // MediaPipe Image Generator — currently commented out until model conversion is done.
-  // Uncomment when the converted SD 1.5 model is available and you're ready to test.
-  // implementation 'com.google.mediapipe:tasks-vision-image-generator:0.10.21'
+  implementation 'com.google.mediapipe:tasks-vision-image-generator:0.10.26.1'
 }

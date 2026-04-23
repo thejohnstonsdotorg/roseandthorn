@@ -6,6 +6,30 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { getDatabase, resetDatabase } from '../db/migrations';
 import { theme } from '../lib/theme';
 
+function DownloadProgressBar({ fraction }: { fraction: number }) {
+  const pct = Math.round((fraction ?? 0) * 100);
+  return (
+    <View style={{ marginTop: 8 }}>
+      <View style={{
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: theme.colors.border,
+        overflow: 'hidden',
+      }}>
+        <View style={{
+          height: 6,
+          borderRadius: 3,
+          backgroundColor: theme.colors.primary,
+          width: `${pct}%`,
+        }} />
+      </View>
+      <Text style={{ color: theme.colors.textMuted, fontSize: 12, marginTop: 4 }}>
+        Downloading model… {pct}%
+      </Text>
+    </View>
+  );
+}
+
 interface SettingsScreenProps {
   onBack: () => void;
   onResetFamily: () => void;
@@ -13,7 +37,7 @@ interface SettingsScreenProps {
 
 export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
   const { family, members, addMember, removeMember } = useFamilyStore();
-  const { aiImagesEnabled, setAiImagesEnabled } = useSettingsStore();
+  const { aiImagesEnabled, setAiImagesEnabled, aiModelDownloading, aiModelProgress, startModelDownload } = useSettingsStore();
   const [newMemberName, setNewMemberName] = useState('');
 
   const handleExport = async () => {
@@ -161,27 +185,33 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
                   </Text>
                   <Switch
                     value={aiImagesEnabled}
+                    disabled={aiModelDownloading}
                     onValueChange={(value) => {
                       if (value && !aiImagesEnabled) {
-                        // Show consent dialog before enabling
                         Alert.alert(
                           'Enable AI Images?',
-                          'This downloads about 1.5 GB of AI model files to your device.\n\n'
-                          + 'All generation stays on your phone — nothing is sent to Google or any other server.\n\n'
-                          + 'Downloading uses your data plan unless you are on Wi-Fi.\n\n'
+                          'This downloads about 1.9 GB of AI model files to your device.\n\n'
+                          + 'All generation stays on your phone — nothing is sent to any server.\n\n'
+                          + 'Recommend downloading on Wi-Fi.\n\n'
                           + 'Images are generated using Stable Diffusion 1.5 via the MediaPipe runtime.',
                           [
                             { text: 'Cancel', style: 'cancel' },
                             {
-                              text: 'Enable & Download',
+                              text: 'Download & Enable',
                               onPress: () => {
-                                setAiImagesEnabled(true);
+                                startModelDownload().catch((err) => {
+                                  Alert.alert(
+                                    'Download Failed',
+                                    err?.message ?? 'Unknown error. Please try again.',
+                                    [{ text: 'OK' }]
+                                  );
+                                });
                               },
                             },
                           ]
                         );
-                      } else {
-                        setAiImagesEnabled(value);
+                      } else if (!value && aiImagesEnabled) {
+                        setAiImagesEnabled(false);
                       }
                     }}
                     trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
@@ -190,9 +220,14 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
                 </View>
                 <Text className="text-sm" style={{ color: theme.colors.textMuted }}>
                   {aiImagesEnabled
-                    ? 'AI-generated artwork enabled. Tap ✨ on any entry to regenerate with AI.'
-                    : 'Off — procedural artwork is used for all entries. No download required.'}
+                    ? 'AI artwork enabled. Tap ✨ on any entry to regenerate with AI.'
+                    : aiModelDownloading
+                    ? 'Downloading model…'
+                    : 'Off — procedural artwork used. No download required.'}
                 </Text>
+                {aiModelDownloading && aiModelProgress !== null && (
+                  <DownloadProgressBar fraction={aiModelProgress} />
+                )}
               </View>
             </View>
 
