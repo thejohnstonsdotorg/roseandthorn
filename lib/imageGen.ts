@@ -70,7 +70,7 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
       const filePath = `${imagesDir}${filename}`;
       await writeAsStringAsync(filePath, base64, { encoding: EncodingType.Base64 });
       return {
-        uri: `file://${filePath}`,
+        uri: filePath, // filePath already has file:// from documentDirectory
         source: 'mediapipe',
         seed: seed ?? 0,
         prompt,

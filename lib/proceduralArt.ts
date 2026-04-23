@@ -203,5 +203,6 @@ export async function generateProceduralArt(
     encoding: EncodingType.Base64,
   });
 
-  return { uri: `file://${filePath}`, seed };
+  // filePath already includes the file:// scheme from documentDirectory
+  return { uri: filePath, seed };
 }
