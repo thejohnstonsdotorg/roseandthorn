@@ -63,10 +63,15 @@ Session
   id, family_id, date, closing_word, created_at
 
 Rose
-  id, session_id, member_id, content, deepening_prompt, deepening_answer, created_at
+  id, session_id, member_id, content, deepening_prompt, deepening_answer, created_at,
+  image_uri, image_seed, image_source, image_prompt
 
 Thorn
-  id, session_id, member_id, content, deepening_prompt, deepening_answer, created_at
+  id, session_id, member_id, content, deepening_prompt, deepening_answer, created_at,
+  image_uri, image_seed, image_source, image_prompt
+
+app_settings
+  key, value
 ```
 
 ### Sync Strategy
@@ -128,17 +133,22 @@ Thorn
 
 ### v1.4 — Generative Imagery
 - [x] `lib/proceduralArt.ts` — deterministic Skia-based art per entry; palette biased by mood (rose: amber/warm, thorn: emerald/cool); seed from member name + text + date
-- [x] `lib/imagePrompt.ts` — converts Rose/Thorn text to a concise image-gen prompt string
+- [x] `lib/imagePrompt.ts` — converts Rose/Thorn text + member emoji to an emoji-character image-gen prompt; emoji mapped to plain-English SD 1.5 character description (e.g. 🦊 → "cute fox celebrating…")
 - [x] `lib/imageGen.ts` — thin interface for image generation; dispatches to procedural or MediaPipe backend; swappable for future LiteRT-LM backend
-- [x] `components/EntryArtwork.tsx` — renders procedural art PNG; "✨ Regenerate with AI" button if MediaPipe available
-- [x] DB migration layer (`PRAGMA user_version`) + image columns on `rose` and `thorn` tables (`image_uri`, `image_seed`, `image_source`, `image_prompt`)
-- [x] `modules/expo-mediapipe-image-gen/` — local Expo Module skeleton (Kotlin + TS bridge); model download and generate() stubbed pending SD 1.5 model conversion (see module TODO comments)
-- [x] Settings → "AI Images" toggle: off by default, explicit consent with 1.5 GB download warning
+- [x] `components/EntryArtwork.tsx` — renders procedural art PNG; "✨ Regenerate with AI" button if MediaPipe available; spinner stays visible during generation (fixed visibility bug)
+- [x] `components/EmojiPicker.tsx` — bottom-sheet modal with 50 curated emoji avatars for member character selection
+- [x] DB migration layer (`PRAGMA user_version`) + image columns on `rose` and `thorn` tables (`image_uri`, `image_seed`, `image_source`, `image_prompt`) + `app_settings` table
+- [x] `modules/expo-mediapipe-image-gen/` — local Expo Module (Kotlin + TS bridge); SD 1.5 inference via MediaPipe; model download with resume support; `ImageGenerator` singleton (eliminates 3–8 s cold-load per call); JPEG 85 encoding (faster than PNG 100)
+- [x] Settings → "AI Images" toggle: off by default, explicit consent with 1.9 GB download warning
 - [x] `SummaryScreen` — display entry artwork alongside text; ✨ regenerate button per entry
 - [x] `HistoryScreen` — thumbnail artwork per session entry
-- [x] `hooks/useEntryImage.ts` — orchestrates image generation and AI regeneration per entry
+- [x] `hooks/useEntryImage.ts` — orchestrates image generation and AI regeneration per entry; `memberEmoji` threaded through to prompt builder
 - [x] `stores/settingsStore.ts` — SQLite-backed settings store for AI Images preference
-- [ ] MediaPipe model download implementation (requires SD 1.5 EMA model conversion + hosting) (v1.4.1)
+- [x] `familyStore.updateMember()` — persists `avatar_emoji` changes to SQLite
+- [x] SetupScreen emoji picker — each member chooses their character during family creation; auto-assigned distinct default emoji
+- [x] SettingsScreen emoji picker — tap member's emoji badge to reassign character at any time
+- [x] MediaPipe model download fully implemented (SD 1.5 EMA bins hosted on GitHub Releases)
+- [x] Generation speed optimizations: singleton generator, 6 iterations (down from 20), JPEG 85 encoding, short ~15-token prompts
 - [ ] 6-month image purge policy (v1.4.1)
 - [ ] Export images in JSON export (v1.4.1)
 
@@ -156,6 +166,7 @@ Thorn
 3. **Photo Attachments:** Deferred to v1.1; now superseded by v1.4 Generative Imagery.
 4. **GitHub Repo:** `thejohnstonsdotorg/roseandthorn` (note: org is `thejohnstonsdotorg`, not `johnstonsdotorg`).
 5. **Generative Imagery:** Procedural Skia art default + opt-in on-device Stable Diffusion 1.5 via MediaPipe. AI off by default. Cloud image APIs explicitly rejected — offline-first invariant preserved. When LiteRT-LM ships a first-party image generation model, swap the backend behind `lib/imageGen.ts` without schema or UI changes.
+6. **Emoji character avatars:** Each member's `avatar_emoji` drives the AI image subject (e.g. 🦊 → "cute fox celebrating…"). The emoji→character mapping lives in `lib/imagePrompt.ts`. SD 1.5 responds better to plain-English character descriptions than raw emoji glyphs. Prompts are intentionally kept to ~15 tokens for speed.
 
 ---
 

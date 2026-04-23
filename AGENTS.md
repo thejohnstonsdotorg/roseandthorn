@@ -9,7 +9,7 @@ Rose & Thorn is an Expo (React Native) app for a family dinner ritual. A single 
 ## Architecture
 
 - **Screen router:** `App.tsx` uses a `useState` string union and a `renderScreen()` switch — NOT React Navigation declarative stacks. Do not refactor to `<Stack.Navigator>`. The imperative approach is intentional because it keeps the `PassPrompt` full-screen overlay simple.
-- **State:** Two Zustand stores — `familyStore` (SQLite-backed family/member CRUD) and `sessionStore` (in-memory session flow). Do not introduce additional state libraries.
+- **State:** Three Zustand stores — `familyStore` (SQLite-backed family/member CRUD), `sessionStore` (in-memory session flow), and `settingsStore` (SQLite-backed AI Images toggle + model download state). Do not introduce additional state libraries.
 - **Database:** `db/migrations.ts` exports a `getDatabase()` singleton. All SQLite access goes through this function. Schema is in `db/schema.ts`.
 - **Styling:** NativeWind (`className` props) alongside inline `style` props using tokens from `lib/theme.ts`. LSP may show "No overload matches" errors on `className` — these are false positives. Use `tsc --noEmit` as the source of truth for type correctness.
 
@@ -21,6 +21,8 @@ Rose & Thorn is an Expo (React Native) app for a family dinner ritual. A single 
 - **Generative imagery is procedural-first.** `lib/proceduralArt.ts` runs synchronously (<100ms) and is always the default path. The MediaPipe AI backend (`modules/expo-mediapipe-image-gen/`) is opt-in via Settings and must never block screen transitions.
 - **Image files live in `expo-file-system`**, not SQLite. Only the file:// URI and metadata (seed, source, prompt) are stored in the `rose`/`thorn` tables. Naming: `{rose|thorn}-{sessionId}-{memberId}-{source}.png`.
 - **`lib/imageGen.ts` interface is the only entry point** for image generation. Callers never call procedural or MediaPipe backends directly. This keeps the AI backend swappable when LiteRT-LM eventually ships image generation.
+- **Emoji character avatars drive AI prompts.** Each member's `avatar_emoji` is mapped to a plain-English SD 1.5 character description in `lib/imagePrompt.ts` (e.g. `🦊` → `"cute fox"`). Raw emoji glyphs must never be embedded directly in prompts — the model was trained on English captions, not Unicode codepoints. The full mapping table lives in `imagePrompt.ts:EMOJI_TO_CHARACTER`.
+- **`ImageGenerator` is a module-level singleton** in `ExpoMediaPipeImageGenModule.kt`. It is created once on first generation and reused across calls. Never call `createFromOptions()` per-request — it loads ~1.9 GB of weights and adds 3–8 s of latency. The singleton is invalidated only when `modelDir()` path changes.
 - **DB migrations use `PRAGMA user_version`** to version the schema. `resetDatabase()` still drops and recreates; migrations only run on existing databases that predate a schema version. Never bypass the migration layer.
 
 ## Roadmap and what to work on next
@@ -133,24 +135,25 @@ adb -s 57150DLCH001ZQ logcat "*:S" ReactNativeJS:V ImageGenerator:V
 |------|---------|
 | `App.tsx` | Screen router + pass-and-play flow state |
 | `screens/HomeScreen.tsx` | Welcome screen; conditionally shows "Create Family" CTA |
-| `screens/SetupScreen.tsx` | First-launch family + member creation |
+| `screens/SetupScreen.tsx` | First-launch family + member creation with emoji picker |
 | `screens/SessionStartScreen.tsx` | Toggle who is present tonight |
 | `screens/RoseScreen.tsx` | Rose input + deepening prompt; calls `addEntry()` |
 | `screens/ThornScreen.tsx` | Thorn input + deepening prompt; calls `updateLastEntry()` |
 | `screens/SummaryScreen.tsx` | Session recap, closing word, persists session to SQLite |
 | `screens/HistoryScreen.tsx` | Scrollable list of past sessions |
-| `screens/SettingsScreen.tsx` | Add/remove members, JSON export, reset all data |
+| `screens/SettingsScreen.tsx` | Add/remove members, emoji picker per member, AI Images toggle, JSON export, reset all data |
 | `components/PassPrompt.tsx` | Full-screen "Pass the phone to [Name]" overlay |
 | `components/DeepeningPrompt.tsx` | Follow-up question card with category badge |
 | `components/EntryArtwork.tsx` | Renders procedural Skia canvas or AI-generated image; hosts ✨ Regenerate button |
-| `stores/familyStore.ts` | Zustand store; SQLite-backed family and member CRUD |
+| `components/EmojiPicker.tsx` | Bottom-sheet modal with 50 curated emoji avatars; used in Setup and Settings |
+| `stores/familyStore.ts` | Zustand store; SQLite-backed family and member CRUD; `updateMember()` persists emoji changes |
 | `stores/sessionStore.ts` | Zustand store; in-memory session flow state |
 | `db/schema.ts` | SQLite table definitions (family, member, session, rose, thorn) |
 | `db/migrations.ts` | `getDatabase()` singleton, `resetDatabase()`, and `PRAGMA user_version` migration layer |
 | `lib/prompts.ts` | Curated prompt banks; `getRandomPrompt` avoids repeats within a session |
 | `lib/theme.ts` | Warm amber/rose/emerald color tokens |
 | `lib/proceduralArt.ts` | Deterministic Skia-based generative art; seeds from member name + text + date |
-| `lib/imagePrompt.ts` | Converts Rose/Thorn text to a concise image-gen prompt string |
+| `lib/imagePrompt.ts` | Converts Rose/Thorn text + `avatar_emoji` to a character-centric SD 1.5 prompt; `EMOJI_TO_CHARACTER` mapping table |
 | `lib/imageGen.ts` | Thin interface for image generation; dispatches to procedural or MediaPipe backend |
 | `modules/expo-mediapipe-image-gen/` | Local Expo Module wrapping MediaPipe Image Generator (opt-in AI backend) |
 | `stores/settingsStore.ts` | Zustand store; AI Images toggle, model download state, SQLite-backed settings |
