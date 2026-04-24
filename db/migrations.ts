@@ -37,50 +37,71 @@ async function applyMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     await database.execAsync('PRAGMA user_version = 2');
   }
 
-  if (currentVersion < 3) {
-    // Migration 3: relax CHECK constraint on rose/thorn image_source to allow 'cloud' (v1.5)
-    // SQLite cannot ALTER a CHECK constraint, so we must rename → create new → copy → drop.
-    // Each statement must be a separate execAsync call — expo-sqlite does not reliably
-    // execute multi-statement strings as a single batch.
-    await database.execAsync('ALTER TABLE rose RENAME TO rose_old');
-    await database.execAsync(`CREATE TABLE rose (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      session_id INTEGER NOT NULL,
-      member_id INTEGER NOT NULL,
-      content TEXT NOT NULL,
-      deepening_prompt TEXT,
-      deepening_answer TEXT,
-      created_at INTEGER NOT NULL,
-      image_uri TEXT,
-      image_seed INTEGER,
-      image_source TEXT CHECK(image_source IN ('procedural', 'mediapipe', 'cloud', 'apple-playground')),
-      image_prompt TEXT,
-      FOREIGN KEY (session_id) REFERENCES session(id),
-      FOREIGN KEY (member_id) REFERENCES member(id)
-    )`);
-    await database.execAsync('INSERT INTO rose SELECT * FROM rose_old');
-    await database.execAsync('DROP TABLE rose_old');
+  // Migration 3: relax CHECK constraint on rose/thorn image_source to allow 'cloud' (v1.5)
+  // Also recovers from a partial migration that left rose_old/thorn_old on disk with
+  // user_version already at 3 (caused by multi-statement execAsync running only first stmt).
+  {
+    const tables = await database.getAllAsync<{ name: string }>(
+      `SELECT name FROM sqlite_master WHERE type='table'`
+    );
+    const tableNames = new Set(tables.map((t) => t.name));
+    const needsRose = !tableNames.has('rose') || currentVersion < 3;
+    const needsThorn = !tableNames.has('thorn') || currentVersion < 3;
 
-    await database.execAsync('ALTER TABLE thorn RENAME TO thorn_old');
-    await database.execAsync(`CREATE TABLE thorn (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      session_id INTEGER NOT NULL,
-      member_id INTEGER NOT NULL,
-      content TEXT NOT NULL,
-      deepening_prompt TEXT,
-      deepening_answer TEXT,
-      created_at INTEGER NOT NULL,
-      image_uri TEXT,
-      image_seed INTEGER,
-      image_source TEXT CHECK(image_source IN ('procedural', 'mediapipe', 'cloud', 'apple-playground')),
-      image_prompt TEXT,
-      FOREIGN KEY (session_id) REFERENCES session(id),
-      FOREIGN KEY (member_id) REFERENCES member(id)
-    )`);
-    await database.execAsync('INSERT INTO thorn SELECT * FROM thorn_old');
-    await database.execAsync('DROP TABLE thorn_old');
+    if (needsRose) {
+      // If a partial migration left rose_old behind, use it; otherwise rename existing rose
+      if (!tableNames.has('rose_old') && tableNames.has('rose')) {
+        await database.execAsync('ALTER TABLE rose RENAME TO rose_old');
+      }
+      await database.execAsync(`CREATE TABLE IF NOT EXISTS rose (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id INTEGER NOT NULL,
+        member_id INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        deepening_prompt TEXT,
+        deepening_answer TEXT,
+        created_at INTEGER NOT NULL,
+        image_uri TEXT,
+        image_seed INTEGER,
+        image_source TEXT CHECK(image_source IN ('procedural', 'mediapipe', 'cloud', 'apple-playground')),
+        image_prompt TEXT,
+        FOREIGN KEY (session_id) REFERENCES session(id),
+        FOREIGN KEY (member_id) REFERENCES member(id)
+      )`);
+      if (tableNames.has('rose_old')) {
+        await database.execAsync('INSERT INTO rose SELECT * FROM rose_old');
+        await database.execAsync('DROP TABLE rose_old');
+      }
+    }
 
-    await database.execAsync('PRAGMA user_version = 3');
+    if (needsThorn) {
+      if (!tableNames.has('thorn_old') && tableNames.has('thorn')) {
+        await database.execAsync('ALTER TABLE thorn RENAME TO thorn_old');
+      }
+      await database.execAsync(`CREATE TABLE IF NOT EXISTS thorn (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id INTEGER NOT NULL,
+        member_id INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        deepening_prompt TEXT,
+        deepening_answer TEXT,
+        created_at INTEGER NOT NULL,
+        image_uri TEXT,
+        image_seed INTEGER,
+        image_source TEXT CHECK(image_source IN ('procedural', 'mediapipe', 'cloud', 'apple-playground')),
+        image_prompt TEXT,
+        FOREIGN KEY (session_id) REFERENCES session(id),
+        FOREIGN KEY (member_id) REFERENCES member(id)
+      )`);
+      if (tableNames.has('thorn_old')) {
+        await database.execAsync('INSERT INTO thorn SELECT * FROM thorn_old');
+        await database.execAsync('DROP TABLE thorn_old');
+      }
+    }
+
+    if (needsRose || needsThorn) {
+      await database.execAsync('PRAGMA user_version = 3');
+    }
   }
 }
 
@@ -97,14 +118,15 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
 
 export async function resetDatabase(): Promise<void> {
   const database = await getDatabase();
-  await database.execAsync(`
-    DROP TABLE IF EXISTS rose;
-    DROP TABLE IF EXISTS thorn;
-    DROP TABLE IF EXISTS session;
-    DROP TABLE IF EXISTS member;
-    DROP TABLE IF EXISTS family;
-    DROP TABLE IF EXISTS app_settings;
-  `);
+  // Each DROP must be a separate execAsync — multi-statement strings are unreliable
+  await database.execAsync('DROP TABLE IF EXISTS rose');
+  await database.execAsync('DROP TABLE IF EXISTS thorn');
+  await database.execAsync('DROP TABLE IF EXISTS session');
+  await database.execAsync('DROP TABLE IF EXISTS member');
+  await database.execAsync('DROP TABLE IF EXISTS family');
+  await database.execAsync('DROP TABLE IF EXISTS app_settings');
+  await database.execAsync('DROP TABLE IF EXISTS rose_old');
+  await database.execAsync('DROP TABLE IF EXISTS thorn_old');
   // Recreate with latest schema (includes image columns and settings table)
   await database.execAsync(schema);
   // Set version to current so no migrations are run on a fresh schema
