@@ -37,6 +37,12 @@
     "plugins": [
       "expo-sqlite",
       "./plugins/withProtobufJava"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "3a678322-b590-4cde-99cb-5abd95588f24"
+      }
+    },
+    "owner": "kencjohnston"
   }
 }
