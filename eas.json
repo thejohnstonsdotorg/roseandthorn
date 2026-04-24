@@ -30,7 +30,8 @@
         "autoIncrement": true
       },
       "env": {
-        "EXPO_PUBLIC_ENABLE_CLOUD_AI": "false"
+        "EXPO_PUBLIC_ENABLE_CLOUD_AI": "false",
+        "EXPO_NEW_ARCH_ENABLED": "false"
       }
     }
   },
