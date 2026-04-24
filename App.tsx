@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 import { HomeScreen } from './screens/HomeScreen';
 import { SetupScreen } from './screens/SetupScreen';
 import { SessionStartScreen } from './screens/SessionStartScreen';
@@ -14,17 +15,32 @@ import { SessionDetailScreen } from './screens/SessionDetailScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { PassPrompt } from './components/PassPrompt';
 import { useSessionStore } from './stores/sessionStore';
+import { useFamilyStore } from './stores/familyStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { theme } from './lib/theme';
+
+// Keep the splash screen visible until we've loaded app data
+SplashScreen.preventAutoHideAsync();
 
 export default function App() {
   const [screen, setScreen] = useState<'home' | 'setup' | 'sessionStart' | 'rose' | 'thorn' | 'summary' | 'history' | 'sessionDetail' | 'settings'>('home');
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const { presentMembers, currentIndex, nextMember, resetSession } = useSessionStore();
+  const { loadFamily } = useFamilyStore();
   const { loadSettings } = useSettingsStore();
 
   useEffect(() => {
-    loadSettings();
+    async function prepare() {
+      try {
+        await Promise.all([loadFamily(), loadSettings()]);
+      } catch (e) {
+        // Log but never let a startup error leave the splash screen frozen.
+        console.error('[App] prepare() failed:', e);
+      } finally {
+        await SplashScreen.hideAsync();
+      }
+    }
+    prepare();
   }, []);
   const [showPassPrompt, setShowPassPrompt] = useState(false);
   const [passTo, setPassTo] = useState<{ name: string; emoji: string } | null>(null);

@@ -108,10 +108,29 @@ async function applyMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (!db) {
     db = await SQLite.openDatabaseAsync('roseandthorn.db');
+
+    // Check if this is a fresh database (user_version = 0 AND no tables yet).
+    // On a fresh install, the schema already contains all columns and tables at
+    // their latest version, so we create the tables then immediately stamp
+    // user_version = CURRENT_VERSION to skip every migration.
+    // On an existing install (user_version > 0 or tables already present),
+    // we fall through to applyMigrations() as before.
+    const versionCheck = await db.getFirstAsync<{ user_version: number }>(
+      'PRAGMA user_version'
+    );
+    const existingVersion = versionCheck?.user_version ?? 0;
+
     // Apply base schema (CREATE TABLE IF NOT EXISTS — safe to re-run)
     await db.execAsync(schema);
-    // Apply incremental migrations for existing databases
-    await applyMigrations(db);
+
+    if (existingVersion === 0) {
+      // Fresh install: schema already reflects CURRENT_VERSION, stamp it so
+      // migrations don't try to ALTER TABLE columns that already exist.
+      await db.execAsync(`PRAGMA user_version = ${CURRENT_VERSION}`);
+    } else {
+      // Existing install: apply any pending incremental migrations
+      await applyMigrations(db);
+    }
   }
   return db;
 }
