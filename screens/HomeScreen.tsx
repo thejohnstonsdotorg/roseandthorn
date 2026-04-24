@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFamilyStore } from '../stores/familyStore';
 import { theme } from '../lib/theme';
 
@@ -12,6 +13,7 @@ interface HomeScreenProps {
 
 export function HomeScreen({ onStart, onHistory, onSettings, onSetup }: HomeScreenProps) {
   const { family, members, loaded, loadFamily } = useFamilyStore();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     loadFamily();
@@ -27,7 +29,10 @@ export function HomeScreen({ onStart, onHistory, onSettings, onSetup }: HomeScre
 
   if (!family) {
     return (
-      <View className="flex-1 items-center justify-center px-6" style={{ backgroundColor: theme.colors.background }}>
+      <View
+        className="flex-1 items-center justify-center px-6"
+        style={{ backgroundColor: theme.colors.background, paddingTop: insets.top, paddingBottom: insets.bottom }}
+      >
         <Text className="text-4xl mb-4">🌹</Text>
         <Text className="text-2xl font-bold mb-2 text-center" style={{ color: theme.colors.text }}>
           Rose & Thorn
@@ -48,8 +53,12 @@ export function HomeScreen({ onStart, onHistory, onSettings, onSetup }: HomeScre
   }
 
   return (
-    <ScrollView className="flex-1 px-6" style={{ backgroundColor: theme.colors.background }}>
-      <View className="items-center pt-12 pb-6">
+    <ScrollView
+      className="flex-1 px-6"
+      style={{ backgroundColor: theme.colors.background }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+    >
+      <View className="items-center pb-6" style={{ paddingTop: insets.top + 16 }}>
         <Text className="text-4xl mb-2">🌹</Text>
         <Text className="text-2xl font-bold mb-1" style={{ color: theme.colors.text }}>
           {family.name}

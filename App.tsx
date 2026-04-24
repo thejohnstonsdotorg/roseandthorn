@@ -27,11 +27,9 @@ export default function App() {
   const [showPassPrompt, setShowPassPrompt] = useState(false);
   const [passTo, setPassTo] = useState<{ name: string; emoji: string } | null>(null);
 
-  const handleStartSession = () => {
+  const handleStartSession = (firstMember: { name: string; emoji: string }) => {
+    setPassTo(firstMember);
     setShowPassPrompt(true);
-    if (presentMembers.length > 0) {
-      setPassTo({ name: presentMembers[0].name, emoji: presentMembers[0].avatar_emoji });
-    }
   };
 
   const handlePassReady = () => {

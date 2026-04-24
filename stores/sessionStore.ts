@@ -31,6 +31,7 @@ interface SessionState {
   setPresentMembers: (members: { id: number; name: string; avatar_emoji: string }[]) => void;
   addEntry: (entry: SessionEntry) => void;
   updateLastEntry: (partial: Partial<SessionEntry>) => void;
+  updateEntryByMemberId: (memberId: number, partial: Partial<SessionEntry>) => void;
   nextMember: () => void;
   setClosingWord: (word: string) => void;
   resetSession: () => void;
@@ -57,6 +58,14 @@ export const useSessionStore = create<SessionState>((set) => ({
       if (entries.length > 0) {
         entries[entries.length - 1] = { ...entries[entries.length - 1], ...partial };
       }
+      return { entries };
+    }),
+
+  updateEntryByMemberId: (memberId, partial) =>
+    set((state) => {
+      const entries = state.entries.map((e) =>
+        e.memberId === memberId ? { ...e, ...partial } : e
+      );
       return { entries };
     }),
 

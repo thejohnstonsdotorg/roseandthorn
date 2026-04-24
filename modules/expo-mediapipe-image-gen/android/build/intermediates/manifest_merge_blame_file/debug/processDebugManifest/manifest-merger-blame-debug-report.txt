@@ -1,0 +1,31 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="expo.modules.mediapipeimagegen" >
+4
+5    <uses-sdk android:minSdkVersion="24" />
+6
+7    <application>
+7-->/Users/kencjohnston/Development/roseandthorn/modules/expo-mediapipe-image-gen/android/src/main/AndroidManifest.xml:2:3-7:17
+8
+9        <!-- Required for MediaPipe GPU delegate (OpenCL) on Android 12+ -->
+10        <uses-native-library
+10-->/Users/kencjohnston/Development/roseandthorn/modules/expo-mediapipe-image-gen/android/src/main/AndroidManifest.xml:4:5-80
+11            android:name="libOpenCL.so"
+11-->/Users/kencjohnston/Development/roseandthorn/modules/expo-mediapipe-image-gen/android/src/main/AndroidManifest.xml:4:26-53
+12            android:required="false" />
+12-->/Users/kencjohnston/Development/roseandthorn/modules/expo-mediapipe-image-gen/android/src/main/AndroidManifest.xml:4:54-78
+13        <uses-native-library
+13-->/Users/kencjohnston/Development/roseandthorn/modules/expo-mediapipe-image-gen/android/src/main/AndroidManifest.xml:4:5-80
+14            android:name="libOpenCL-car.so"
+14-->/Users/kencjohnston/Development/roseandthorn/modules/expo-mediapipe-image-gen/android/src/main/AndroidManifest.xml:4:26-53
+15            android:required="false" />
+15-->/Users/kencjohnston/Development/roseandthorn/modules/expo-mediapipe-image-gen/android/src/main/AndroidManifest.xml:4:54-78
+16        <uses-native-library
+16-->/Users/kencjohnston/Development/roseandthorn/modules/expo-mediapipe-image-gen/android/src/main/AndroidManifest.xml:4:5-80
+17            android:name="libOpenCL-pixel.so"
+17-->/Users/kencjohnston/Development/roseandthorn/modules/expo-mediapipe-image-gen/android/src/main/AndroidManifest.xml:4:26-53
+18            android:required="false" />
+18-->/Users/kencjohnston/Development/roseandthorn/modules/expo-mediapipe-image-gen/android/src/main/AndroidManifest.xml:4:54-78
+19    </application>
+20
+21</manifest>

@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFamilyStore } from '../stores/familyStore';
 import { useSessionStore } from '../stores/sessionStore';
 import { theme } from '../lib/theme';
 
 interface SessionStartScreenProps {
-  onStartSession: () => void;
+  onStartSession: (firstMember: { name: string; emoji: string }) => void;
 }
 
 export function SessionStartScreen({ onStartSession }: SessionStartScreenProps) {
   const { members } = useFamilyStore();
   const { setPresentMembers } = useSessionStore();
   const [selected, setSelected] = useState<Set<number>>(new Set(members.map((m) => m.id)));
+  const insets = useSafeAreaInsets();
 
   const toggleMember = (id: number) => {
     const next = new Set(selected);
@@ -27,12 +29,16 @@ export function SessionStartScreen({ onStartSession }: SessionStartScreenProps) 
     const present = members.filter((m) => selected.has(m.id));
     if (present.length === 0) return;
     setPresentMembers(present.map((m) => ({ id: m.id, name: m.name, avatar_emoji: m.avatar_emoji })));
-    onStartSession();
+    onStartSession({ name: present[0].name, emoji: present[0].avatar_emoji });
   };
 
   return (
-    <ScrollView className="flex-1 px-6" style={{ backgroundColor: theme.colors.background }}>
-      <View className="pt-12 pb-6">
+    <ScrollView
+      className="flex-1 px-6"
+      style={{ backgroundColor: theme.colors.background }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+    >
+      <View style={{ paddingTop: insets.top + 16 }} className="pb-6">
         <Text className="text-3xl font-bold mb-2" style={{ color: theme.colors.text }}>
           Who's at the table?
         </Text>
@@ -76,7 +82,7 @@ export function SessionStartScreen({ onStartSession }: SessionStartScreenProps) 
 
       <TouchableOpacity
         onPress={handleStart}
-        className="py-4 rounded-2xl items-center mt-6 mb-8"
+        className="py-4 rounded-2xl items-center mt-6 mb-4"
         style={{
           backgroundColor: selected.size > 0 ? theme.colors.primary : theme.colors.border,
           opacity: selected.size > 0 ? 1 : 0.6,

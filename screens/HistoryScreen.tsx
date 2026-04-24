@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getDatabase } from '../db/migrations';
 import { theme } from '../lib/theme';
 import { EntryArtwork } from '../components/EntryArtwork';
@@ -19,6 +20,7 @@ interface HistoryScreenProps {
 
 export function HistoryScreen({ onBack }: HistoryScreenProps) {
   const [sessions, setSessions] = useState<HistorySession[]>([]);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     loadSessions();
@@ -47,7 +49,7 @@ export function HistoryScreen({ onBack }: HistoryScreenProps) {
 
   return (
     <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
-      <View className="pt-12 pb-4 px-6 flex-row items-center">
+      <View className="pb-4 px-6 flex-row items-center" style={{ paddingTop: insets.top + 8 }}>
         <TouchableOpacity
           onPress={onBack}
           hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
@@ -60,7 +62,7 @@ export function HistoryScreen({ onBack }: HistoryScreenProps) {
         </Text>
       </View>
 
-      <ScrollView className="px-6">
+      <ScrollView className="px-6" contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}>
         {sessions.length === 0 ? (
           <View className="items-center mt-12">
             <Text className="text-4xl mb-4">📖</Text>

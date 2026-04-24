@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSessionStore, SessionEntry } from '../stores/sessionStore';
 import { getDatabase } from '../db/migrations';
 import { theme } from '../lib/theme';
@@ -58,9 +59,10 @@ interface SummaryScreenProps {
 }
 
 export function SummaryScreen({ onFinish }: SummaryScreenProps) {
-  const { entries, updateLastEntry } = useSessionStore();
+  const { entries, updateEntryByMemberId } = useSessionStore();
   const [word, setWord] = useState('');
   const [saved, setSaved] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const handleSave = async () => {
     const db = await getDatabase();
@@ -127,8 +129,12 @@ export function SummaryScreen({ onFinish }: SummaryScreenProps) {
   };
 
   return (
-    <ScrollView className="flex-1 px-6" style={{ backgroundColor: theme.colors.background }}>
-      <View className="pt-12 pb-4 items-center">
+    <ScrollView
+      className="flex-1 px-6"
+      style={{ backgroundColor: theme.colors.background }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+    >
+      <View className="pb-4 items-center" style={{ paddingTop: insets.top + 16 }}>
         <Text className="text-4xl mb-2">🌟</Text>
         <Text className="text-3xl font-bold mb-2 text-center" style={{ color: theme.colors.text }}>
           Wonderful Sharing
@@ -166,7 +172,7 @@ export function SummaryScreen({ onFinish }: SummaryScreenProps) {
                   memberId={entry.memberId}
                   mood="rose"
                   onNewImage={(uri, seed, source, prompt) => {
-                    updateLastEntry({
+                    updateEntryByMemberId(entry.memberId, {
                       roseImageUri: uri,
                       roseImageSeed: seed,
                       roseImageSource: source,
@@ -194,7 +200,7 @@ export function SummaryScreen({ onFinish }: SummaryScreenProps) {
                   memberId={entry.memberId}
                   mood="thorn"
                   onNewImage={(uri, seed, source, prompt) => {
-                    updateLastEntry({
+                    updateEntryByMemberId(entry.memberId, {
                       thornImageUri: uri,
                       thornImageSeed: seed,
                       thornImageSource: source,
@@ -230,7 +236,7 @@ export function SummaryScreen({ onFinish }: SummaryScreenProps) {
           />
           <TouchableOpacity
             onPress={handleSave}
-            className="py-4 rounded-2xl items-center mb-8"
+            className="py-4 rounded-2xl items-center mb-4"
             style={{ backgroundColor: theme.colors.primary }}
             activeOpacity={0.8}
           >

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFamilyStore } from '../stores/familyStore';
 import { theme } from '../lib/theme';
 import { EmojiPicker, AVATAR_EMOJIS } from '../components/EmojiPicker';
@@ -20,6 +21,7 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
   // Which pending member index is being picked for
   const [pickerIndex, setPickerIndex] = useState<number | null>(null);
   const { createFamily, addMember } = useFamilyStore();
+  const insets = useSafeAreaInsets();
 
   const addMemberToList = () => {
     if (memberName.trim().length === 0) return;
@@ -55,8 +57,12 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
   };
 
   return (
-    <ScrollView className="flex-1 px-6" style={{ backgroundColor: theme.colors.background }}>
-      <View className="pt-12 pb-6">
+    <ScrollView
+      className="flex-1 px-6"
+      style={{ backgroundColor: theme.colors.background }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+    >
+      <View className="pb-6" style={{ paddingTop: insets.top + 16 }}>
         <Text className="text-3xl font-bold mb-2" style={{ color: theme.colors.text }}>
           Create Your Family
         </Text>
@@ -147,7 +153,7 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
 
       <TouchableOpacity
         onPress={handleComplete}
-        className="py-4 rounded-2xl items-center mt-6 mb-8"
+        className="py-4 rounded-2xl items-center mt-6 mb-4"
         style={{ backgroundColor: theme.colors.primary }}
         activeOpacity={0.8}
       >

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSessionStore } from '../stores/sessionStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { getRandomPrompt, rosePrompts } from '../lib/prompts';
@@ -14,6 +15,7 @@ interface RoseScreenProps {
 export function RoseScreen({ onComplete }: RoseScreenProps) {
   const { presentMembers, currentIndex, markRosePromptUsed, usedRosePrompts, addEntry, updateLastEntry } = useSessionStore();
   const { aiImagesEnabled, aiBackend, cloudApiKey } = useSettingsStore();
+  const insets = useSafeAreaInsets();
   const member = presentMembers[currentIndex];
   const [content, setContent] = useState('');
   const [showPrompt, setShowPrompt] = useState(false);
@@ -110,8 +112,12 @@ export function RoseScreen({ onComplete }: RoseScreenProps) {
   };
 
   return (
-    <ScrollView className="flex-1 px-6" style={{ backgroundColor: theme.colors.background }}>
-      <View className="pt-12 pb-4">
+    <ScrollView
+      className="flex-1 px-6"
+      style={{ backgroundColor: theme.colors.background }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+    >
+      <View className="pb-4" style={{ paddingTop: insets.top + 16 }}>
         <Text className="text-sm font-semibold mb-1" style={{ color: theme.colors.rose }}>
           {member.name}'s Turn
         </Text>
@@ -143,7 +149,7 @@ export function RoseScreen({ onComplete }: RoseScreenProps) {
           />
           <TouchableOpacity
             onPress={handleContinue}
-            className="py-4 rounded-2xl items-center mt-6 mb-8"
+            className="py-4 rounded-2xl items-center mt-6 mb-4"
             style={{
               backgroundColor: content.trim().length > 0 ? theme.colors.primary : theme.colors.border,
               opacity: content.trim().length > 0 ? 1 : 0.6,

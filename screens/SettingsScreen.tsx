@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Share, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Sharing from 'expo-sharing';
 import { useFamilyStore } from '../stores/familyStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -108,6 +109,7 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [testing, setTesting] = useState(false);
   const [showProviderPicker, setShowProviderPicker] = useState(false);
+  const insets = useSafeAreaInsets();
 
   // Compute the tri-state value
   const triState: 'off' | 'mediapipe' | 'cloud' =
@@ -222,7 +224,7 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
 
   return (
     <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
-      <View className="pt-12 pb-4 px-6 flex-row items-center">
+      <View className="pb-4 px-6 flex-row items-center" style={{ paddingTop: insets.top + 8 }}>
         <TouchableOpacity
           onPress={onBack}
           hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
@@ -235,7 +237,7 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
         </Text>
       </View>
 
-      <ScrollView className="px-6">
+      <ScrollView className="px-6" contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}>
         {family ? (
           <>
             <View className="mb-6">
@@ -511,7 +513,7 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
 
             <TouchableOpacity
               onPress={handleReset}
-              className="py-4 rounded-2xl items-center mb-8"
+              className="py-4 rounded-2xl items-center mb-4"
               style={{ backgroundColor: theme.colors.roseLight, borderWidth: 1, borderColor: theme.colors.rose }}
               activeOpacity={0.8}
             >
