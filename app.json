@@ -36,7 +36,8 @@
     },
     "plugins": [
       "expo-sqlite",
-      "./plugins/withProtobufJava"
+      "./plugins/withProtobufJava",
+      "./plugins/withReleaseSigning"
     ],
     "extra": {
       "eas": {

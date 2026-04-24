@@ -1,16 +1,15 @@
 # ─── Release signing ──────────────────────────────────────────────────────────
-# Copy this file to android/gradle.properties (gitignored) and fill in the
-# values for local release builds. EAS Build injects these automatically via
-# its managed credentials flow — you do NOT need to set them manually when
-# building with `eas build`.
+# For LOCAL release builds only. EAS Build injects these automatically from its
+# managed credentials — you do NOT need to set them when using `eas build`.
 #
-# Generate a keystore:
+# Copy to android/gradle.properties (gitignored) and fill in values:
+#
+# Generate a keystore locally (if not using EAS managed credentials):
 #   keytool -genkey -v -keystore roseandthorn-upload.jks \
 #     -keyalg RSA -keysize 2048 -validity 10000 -alias roseandthorn
 #
 # Back up the JKS file to a password manager. Losing the upload keystore
-# permanently prevents updating the app unless you use Play App Signing key
-# rotation (which requires contacting Google support).
+# prevents app updates unless you use Play App Signing key rotation.
 # ─────────────────────────────────────────────────────────────────────────────
 
 RELEASE_STORE_FILE=../roseandthorn-upload.jks
