@@ -5,6 +5,7 @@ import { getDatabase } from '../db/migrations';
 import { theme } from '../lib/theme';
 import { EntryArtwork } from '../components/EntryArtwork';
 import { useEntryImage } from '../hooks/useEntryImage';
+import type { ImageSource } from '../lib/imageGen';
 
 // Sub-component: wraps a single rose or thorn artwork with the regenerate hook
 interface ArtworkWithRegenerateProps {
@@ -15,7 +16,7 @@ interface ArtworkWithRegenerateProps {
   memberEmoji?: string;
   memberId: number;
   mood: 'rose' | 'thorn';
-  onNewImage?: (uri: string, seed: number, source: 'procedural' | 'mediapipe' | 'apple-playground', prompt: string) => void;
+  onNewImage?: (uri: string, seed: number, source: ImageSource, prompt: string) => void;
 }
 
 function ArtworkWithRegenerate({

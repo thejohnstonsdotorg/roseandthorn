@@ -4,14 +4,20 @@
  * Orchestrates image generation for a single Rose or Thorn entry.
  * Handles:
  *   - Current image URI state
- *   - MediaPipe availability check
+ *   - Backend availability check (cloud / mediapipe / procedural)
  *   - "✨ Regenerate with AI" action
  *   - Progress state during AI generation
  *   - Silent fallback to procedural on any AI failure
+ *
+ * Backend selection:
+ *   - aiImagesEnabled=false           → 'procedural' (no AI button)
+ *   - aiImagesEnabled=true, backend='cloud', key set  → 'cloud'
+ *   - aiImagesEnabled=true, backend='mediapipe'       → 'mediapipe'
+ *   - otherwise                                       → 'procedural'
  */
 
 import { useState, useEffect } from 'react';
-import { generate, isAvailable } from '../lib/imageGen';
+import { generate, isAvailable, type ImageSource } from '../lib/imageGen';
 import { useSettingsStore } from '../stores/settingsStore';
 
 export interface UseEntryImageOptions {
@@ -28,7 +34,7 @@ export interface UseEntryImageOptions {
   /** Unique filename base — caller must make this stable and unique per entry */
   filenameBase: string;
   /** Called with the new URI + metadata when a new image is ready */
-  onNewImage?: (uri: string, seed: number, source: 'procedural' | 'mediapipe' | 'apple-playground', prompt: string) => void;
+  onNewImage?: (uri: string, seed: number, source: ImageSource, prompt: string) => void;
 }
 
 export interface UseEntryImageResult {
@@ -39,12 +45,19 @@ export interface UseEntryImageResult {
 }
 
 export function useEntryImage(options: UseEntryImageOptions): UseEntryImageResult {
-  const { currentUri, currentSeed, text, memberName, memberEmoji, mood, filenameBase, onNewImage } = options;
-  const { aiImagesEnabled } = useSettingsStore();
+  const { currentUri, text, memberName, memberEmoji, mood, filenameBase, onNewImage } = options;
+  const { aiImagesEnabled, aiBackend, cloudApiKey } = useSettingsStore();
 
   const [imageUri, setImageUri] = useState<string | undefined>(currentUri);
   const [aiGenerating, setAiGenerating] = useState(false);
-  const [mediaPipeAvailable, setMediaPipeAvailable] = useState(false);
+  const [aiAvailable, setAiAvailable] = useState(false);
+
+  // Determine the active backend based on settings
+  const activeBackend: ImageSource =
+    !aiImagesEnabled ? 'procedural'
+    : aiBackend === 'cloud' && cloudApiKey ? 'cloud'
+    : aiBackend === 'mediapipe' ? 'mediapipe'
+    : 'procedural';
 
   // Sync external URI changes (e.g. when procedural art finishes generating,
   // or when a parent component persists a new URI back to us)
@@ -54,31 +67,36 @@ export function useEntryImage(options: UseEntryImageOptions): UseEntryImageResul
     }
   }, [currentUri]);
 
-  // Check MediaPipe availability once on mount
+  // Check AI backend availability once when aiImagesEnabled or activeBackend changes
   useEffect(() => {
-    if (aiImagesEnabled) {
-      isAvailable('mediapipe').then((avail) => {
-        console.log('[useEntryImage] mediaPipeAvailable:', avail);
-        setMediaPipeAvailable(avail);
-      });
+    if (!aiImagesEnabled) {
+      setAiAvailable(false);
+      return;
     }
-  }, [aiImagesEnabled]);
+    isAvailable(activeBackend).then((avail) => {
+      console.log(`[useEntryImage] ${activeBackend} available:`, avail);
+      setAiAvailable(avail);
+    });
+  }, [aiImagesEnabled, activeBackend]);
 
-  // Button is visible whenever AI is enabled and available — including while generating
-  // (aiGenerating is passed through so EntryArtwork can show a spinner and disable taps)
-  const showAiRegenerate = aiImagesEnabled && mediaPipeAvailable;
+  // Button is visible whenever AI is enabled and the active backend is available
+  const showAiRegenerate = aiImagesEnabled && aiAvailable && activeBackend !== 'procedural';
 
   const regenerateWithAI = async () => {
     if (aiGenerating) return;
     setAiGenerating(true);
     try {
+      // Randomize the seed on regenerate — re-running with the same seed
+      // produces an identical image, which is not what the user wants here.
       const result = await generate({
         text,
         memberName,
         memberEmoji,
         mood,
-        backend: 'mediapipe',
-        filename: `${filenameBase}-mediapipe.png`,
+        backend: activeBackend,
+        // Omit seed → generate() will pick a random one for cloud, or derive from
+        // text+name+date for procedural (still deterministic on fallback).
+        filename: `${filenameBase}-${activeBackend}.${activeBackend === 'mediapipe' ? 'png' : 'jpg'}`,
       });
       setImageUri(result.uri);
       onNewImage?.(result.uri, result.seed, result.source, result.prompt);

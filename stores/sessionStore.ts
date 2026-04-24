@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { ImageSource } from '../lib/imageGen';
 
 export interface SessionEntry {
   memberId: number;
@@ -9,14 +10,14 @@ export interface SessionEntry {
   roseAnswer: string;
   roseImageUri?: string;
   roseImageSeed?: number;
-  roseImageSource?: 'procedural' | 'mediapipe' | 'apple-playground';
+  roseImageSource?: ImageSource;
   roseImagePrompt?: string;
   thorn: string;
   thornPrompt: string;
   thornAnswer: string;
   thornImageUri?: string;
   thornImageSeed?: number;
-  thornImageSource?: 'procedural' | 'mediapipe' | 'apple-playground';
+  thornImageSource?: ImageSource;
   thornImagePrompt?: string;
 }
 

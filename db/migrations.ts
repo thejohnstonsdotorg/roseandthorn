@@ -4,7 +4,7 @@ import { schema } from './schema';
 let db: SQLite.SQLiteDatabase | null = null;
 
 // Current target schema version
-const CURRENT_VERSION = 2;
+const CURRENT_VERSION = 3;
 
 async function applyMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
   // Read the current schema version
@@ -37,7 +37,51 @@ async function applyMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     await database.execAsync('PRAGMA user_version = 2');
   }
 
-  // Future migrations: if (currentVersion < 3) { ... PRAGMA user_version = 3; }
+  if (currentVersion < 3) {
+    // Migration 3: relax CHECK constraint on rose/thorn image_source to allow 'cloud' (v1.5)
+    // SQLite cannot ALTER a CHECK constraint, so we must rename → create new → copy → drop.
+    await database.execAsync(`
+      ALTER TABLE rose RENAME TO rose_old;
+      CREATE TABLE rose (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id INTEGER NOT NULL,
+        member_id INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        deepening_prompt TEXT,
+        deepening_answer TEXT,
+        created_at INTEGER NOT NULL,
+        image_uri TEXT,
+        image_seed INTEGER,
+        image_source TEXT CHECK(image_source IN ('procedural', 'mediapipe', 'cloud', 'apple-playground')),
+        image_prompt TEXT,
+        FOREIGN KEY (session_id) REFERENCES session(id),
+        FOREIGN KEY (member_id) REFERENCES member(id)
+      );
+      INSERT INTO rose SELECT * FROM rose_old;
+      DROP TABLE rose_old;
+    `);
+    await database.execAsync(`
+      ALTER TABLE thorn RENAME TO thorn_old;
+      CREATE TABLE thorn (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id INTEGER NOT NULL,
+        member_id INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        deepening_prompt TEXT,
+        deepening_answer TEXT,
+        created_at INTEGER NOT NULL,
+        image_uri TEXT,
+        image_seed INTEGER,
+        image_source TEXT CHECK(image_source IN ('procedural', 'mediapipe', 'cloud', 'apple-playground')),
+        image_prompt TEXT,
+        FOREIGN KEY (session_id) REFERENCES session(id),
+        FOREIGN KEY (member_id) REFERENCES member(id)
+      );
+      INSERT INTO thorn SELECT * FROM thorn_old;
+      DROP TABLE thorn_old;
+    `);
+    await database.execAsync('PRAGMA user_version = 3');
+  }
 }
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {

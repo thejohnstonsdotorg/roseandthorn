@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { useSessionStore } from '../stores/sessionStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import { getRandomPrompt, rosePrompts } from '../lib/prompts';
 import { DeepeningPrompt } from '../components/DeepeningPrompt';
 import { theme } from '../lib/theme';
@@ -12,6 +13,7 @@ interface RoseScreenProps {
 
 export function RoseScreen({ onComplete }: RoseScreenProps) {
   const { presentMembers, currentIndex, markRosePromptUsed, usedRosePrompts, addEntry, updateLastEntry } = useSessionStore();
+  const { aiImagesEnabled, aiBackend, cloudApiKey } = useSettingsStore();
   const member = presentMembers[currentIndex];
   const [content, setContent] = useState('');
   const [showPrompt, setShowPrompt] = useState(false);
@@ -38,7 +40,11 @@ export function RoseScreen({ onComplete }: RoseScreenProps) {
       thornAnswer: '',
     });
 
-    // Fire-and-forget: generate procedural art in the background.
+    // Capture the current entry identity for the cloud race guard
+    const capturedMemberId = member.id;
+    const capturedIndex = currentIndex;
+
+    // Fire-and-forget: generate procedural art immediately (<100 ms, non-blocking).
     // The session ID is not available yet (it's assigned when the session is saved),
     // so we use a temp filename keyed on memberId + timestamp.
     const tempFilename = `rose-pending-${member.id}-${Date.now()}-procedural.png`;
@@ -47,6 +53,7 @@ export function RoseScreen({ onComplete }: RoseScreenProps) {
       memberName: member.name,
       memberEmoji: member.avatar_emoji,
       mood: 'rose',
+      backend: 'procedural',
       filename: tempFilename,
     })
       .then((result) => {
@@ -60,6 +67,44 @@ export function RoseScreen({ onComplete }: RoseScreenProps) {
       .catch(() => {
         // Artwork generation failure is non-fatal — session continues without image
       });
+
+    // Eager cloud generation: fires in parallel with procedural if cloud is configured.
+    // When it resolves, it overwrites the procedural URI — the 300 ms expo-image transition
+    // makes the swap visually smooth. If the user has moved to a new session/member
+    // before cloud resolves, the update is dropped by the race guard.
+    const shouldUseCloud =
+      aiImagesEnabled && aiBackend === 'cloud' && cloudApiKey.length > 0;
+
+    if (shouldUseCloud) {
+      const cloudFilename = `rose-pending-${member.id}-${Date.now()}-cloud.jpg`;
+      generate({
+        text: content,
+        memberName: member.name,
+        memberEmoji: member.avatar_emoji,
+        mood: 'rose',
+        backend: 'cloud',
+        filename: cloudFilename,
+      })
+        .then((result) => {
+          // Race guard: only apply the cloud result if we're still on the same entry
+          const { entries } = useSessionStore.getState();
+          const lastEntry = entries[entries.length - 1];
+          if (
+            lastEntry &&
+            lastEntry.memberId === capturedMemberId
+          ) {
+            updateLastEntry({
+              roseImageUri: result.uri,
+              roseImageSeed: result.seed,
+              roseImageSource: result.source,
+              roseImagePrompt: result.prompt,
+            });
+          }
+        })
+        .catch(() => {
+          // Cloud failure is silent — procedural result stays
+        });
+    }
 
     onComplete();
   };

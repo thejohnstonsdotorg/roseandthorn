@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { useSessionStore } from '../stores/sessionStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import { getRandomPrompt, thornPrompts } from '../lib/prompts';
 import { DeepeningPrompt } from '../components/DeepeningPrompt';
 import { theme } from '../lib/theme';
@@ -12,6 +13,7 @@ interface ThornScreenProps {
 
 export function ThornScreen({ onComplete }: ThornScreenProps) {
   const { presentMembers, currentIndex, markThornPromptUsed, usedThornPrompts, updateLastEntry } = useSessionStore();
+  const { aiImagesEnabled, aiBackend, cloudApiKey } = useSettingsStore();
   const member = presentMembers[currentIndex];
   const [content, setContent] = useState('');
   const [showPrompt, setShowPrompt] = useState(false);
@@ -32,13 +34,17 @@ export function ThornScreen({ onComplete }: ThornScreenProps) {
       thornAnswer: answer,
     });
 
-    // Fire-and-forget: generate procedural art in the background.
+    // Capture the current entry identity for the cloud race guard
+    const capturedMemberId = member.id;
+
+    // Fire-and-forget: generate procedural art immediately (<100 ms, non-blocking).
     const tempFilename = `thorn-pending-${member.id}-${Date.now()}-procedural.png`;
     generate({
       text: content,
       memberName: member.name,
       memberEmoji: member.avatar_emoji,
       mood: 'thorn',
+      backend: 'procedural',
       filename: tempFilename,
     })
       .then((result) => {
@@ -52,6 +58,43 @@ export function ThornScreen({ onComplete }: ThornScreenProps) {
       .catch(() => {
         // Artwork generation failure is non-fatal
       });
+
+    // Eager cloud generation: fires in parallel with procedural if cloud is configured.
+    // When it resolves, it overwrites the procedural URI. Race guard ensures we only
+    // apply the result if we're still on the same session entry.
+    const shouldUseCloud =
+      aiImagesEnabled && aiBackend === 'cloud' && cloudApiKey.length > 0;
+
+    if (shouldUseCloud) {
+      const cloudFilename = `thorn-pending-${member.id}-${Date.now()}-cloud.jpg`;
+      generate({
+        text: content,
+        memberName: member.name,
+        memberEmoji: member.avatar_emoji,
+        mood: 'thorn',
+        backend: 'cloud',
+        filename: cloudFilename,
+      })
+        .then((result) => {
+          // Race guard: only apply the cloud result if we're still on the same entry
+          const { entries } = useSessionStore.getState();
+          const lastEntry = entries[entries.length - 1];
+          if (
+            lastEntry &&
+            lastEntry.memberId === capturedMemberId
+          ) {
+            updateLastEntry({
+              thornImageUri: result.uri,
+              thornImageSeed: result.seed,
+              thornImageSource: result.source,
+              thornImagePrompt: result.prompt,
+            });
+          }
+        })
+        .catch(() => {
+          // Cloud failure is silent — procedural result stays
+        });
+    }
 
     onComplete();
   };

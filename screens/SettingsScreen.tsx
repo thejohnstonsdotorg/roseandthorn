@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Share, Switch } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Share, ActivityIndicator } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import { useFamilyStore } from '../stores/familyStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -7,6 +7,7 @@ import { getDatabase, resetDatabase } from '../db/migrations';
 import { theme } from '../lib/theme';
 import { isNativeModulePresent } from '../modules/expo-mediapipe-image-gen/src/ExpoMediaPipeImageGenModule';
 import { EmojiPicker } from '../components/EmojiPicker';
+import type { CloudProvider } from '../lib/cloudImage';
 
 function DownloadProgressBar({ fraction }: { fraction: number }) {
   const pct = Math.round((fraction ?? 0) * 100);
@@ -32,6 +33,57 @@ function DownloadProgressBar({ fraction }: { fraction: number }) {
   );
 }
 
+/** Simple segmented control for the AI backend tri-state. */
+function BackendSegmentedControl({
+  value,
+  onChange,
+}: {
+  value: 'off' | 'mediapipe' | 'cloud';
+  onChange: (v: 'off' | 'mediapipe' | 'cloud') => void;
+}) {
+  const options: { key: 'off' | 'mediapipe' | 'cloud'; label: string }[] = [
+    { key: 'off', label: 'Off' },
+    { key: 'mediapipe', label: 'On-device' },
+    { key: 'cloud', label: 'Cloud' },
+  ];
+  return (
+    <View style={{ flexDirection: 'row', borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.border }}>
+      {options.map((opt, i) => {
+        const active = value === opt.key;
+        return (
+          <TouchableOpacity
+            key={opt.key}
+            onPress={() => onChange(opt.key)}
+            style={{
+              flex: 1,
+              paddingVertical: 8,
+              alignItems: 'center',
+              backgroundColor: active ? theme.colors.primary : theme.colors.surface,
+              borderLeftWidth: i > 0 ? 1 : 0,
+              borderLeftColor: theme.colors.border,
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={{ color: active ? '#fff' : theme.colors.text, fontSize: 13, fontWeight: active ? '700' : '400' }}>
+              {opt.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+const PROVIDER_LABELS: Record<CloudProvider, string> = {
+  fal: 'fal.ai',
+  fireworks: 'Fireworks',
+  together: 'Together AI',
+  replicate: 'Replicate',
+  wavespeed: 'WaveSpeed',
+};
+
+const PROVIDERS: CloudProvider[] = ['fal', 'fireworks', 'together', 'replicate', 'wavespeed'];
+
 interface SettingsScreenProps {
   onBack: () => void;
   onResetFamily: () => void;
@@ -39,9 +91,89 @@ interface SettingsScreenProps {
 
 export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
   const { family, members, addMember, updateMember, removeMember } = useFamilyStore();
-  const { aiImagesEnabled, setAiImagesEnabled, aiModelDownloading, aiModelProgress, startModelDownload } = useSettingsStore();
+  const {
+    aiImagesEnabled, setAiImagesEnabled,
+    aiBackend, setAiBackend,
+    cloudProvider, setCloudProvider,
+    cloudApiKey, setCloudApiKey,
+    aiModelDownloading, aiModelProgress,
+    startModelDownload,
+    resetSettings,
+    testCloudKey,
+  } = useSettingsStore();
+
   const [newMemberName, setNewMemberName] = useState('');
   const [emojiPickerMemberId, setEmojiPickerMemberId] = useState<number | null>(null);
+  const [apiKeyDraft, setApiKeyDraft] = useState(cloudApiKey);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [showProviderPicker, setShowProviderPicker] = useState(false);
+
+  // Compute the tri-state value
+  const triState: 'off' | 'mediapipe' | 'cloud' =
+    !aiImagesEnabled ? 'off'
+    : aiBackend === 'mediapipe' ? 'mediapipe'
+    : 'cloud';
+
+  const handleTriStateChange = async (v: 'off' | 'mediapipe' | 'cloud') => {
+    setTestResult(null);
+    if (v === 'off') {
+      await setAiImagesEnabled(false);
+      return;
+    }
+    if (v === 'mediapipe') {
+      if (!isNativeModulePresent) {
+        Alert.alert('Not available', 'On-device AI requires a physical device with the dev client build.');
+        return;
+      }
+      if (!aiImagesEnabled || aiBackend !== 'mediapipe') {
+        Alert.alert(
+          'Enable On-device AI?',
+          'This downloads about 1.9 GB of AI model files to your device.\n\n'
+          + 'All generation stays on your phone — nothing is sent to any server.\n\n'
+          + 'Recommend downloading on Wi-Fi.\n\n'
+          + 'Images are generated using Stable Diffusion 1.5 via the MediaPipe runtime.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Download & Enable',
+              onPress: () => {
+                startModelDownload().catch((err) => {
+                  Alert.alert(
+                    'Download Failed',
+                    err?.message ?? 'Unknown error. Please try again.',
+                    [{ text: 'OK' }]
+                  );
+                });
+              },
+            },
+          ]
+        );
+      }
+      return;
+    }
+    // v === 'cloud'
+    await setAiBackend('cloud');
+    await setAiImagesEnabled(true);
+  };
+
+  const handleSaveApiKey = async () => {
+    await setCloudApiKey(apiKeyDraft.trim());
+    setTestResult(null);
+  };
+
+  const handleTestKey = async () => {
+    // Save the current draft first so testCloudKey uses the latest value
+    await setCloudApiKey(apiKeyDraft.trim());
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const result = await testCloudKey();
+      setTestResult(result);
+    } finally {
+      setTesting(false);
+    }
+  };
 
   const handleExport = async () => {
     const db = await getDatabase();
@@ -68,8 +200,6 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
     await addMember(newMemberName.trim());
     setNewMemberName('');
   };
-
-  const { resetSettings } = useSettingsStore();
 
   const handleReset = () => {
     Alert.alert(
@@ -210,7 +340,7 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
               </View>
             </View>
 
-            {/* AI Images toggle */}
+            {/* AI Images — tri-state control */}
             <View className="mb-6">
               <Text className="text-sm font-semibold mb-2" style={{ color: theme.colors.textMuted }}>
                 Generative Imagery
@@ -219,56 +349,153 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
                 className="p-4 rounded-2xl"
                 style={{ backgroundColor: theme.colors.surface }}
               >
-                <View className="flex-row items-center justify-between mb-2">
-                  <Text className="text-base font-semibold" style={{ color: theme.colors.text }}>
-                    AI Images
-                  </Text>
-                  <Switch
-                    value={aiImagesEnabled}
-                    disabled={!isNativeModulePresent || aiModelDownloading}
-                    onValueChange={(value) => {
-                      if (value && !aiImagesEnabled) {
-                        Alert.alert(
-                          'Enable AI Images?',
-                          'This downloads about 1.9 GB of AI model files to your device.\n\n'
-                          + 'All generation stays on your phone — nothing is sent to any server.\n\n'
-                          + 'Recommend downloading on Wi-Fi.\n\n'
-                          + 'Images are generated using Stable Diffusion 1.5 via the MediaPipe runtime.',
-                          [
-                            { text: 'Cancel', style: 'cancel' },
-                            {
-                              text: 'Download & Enable',
-                              onPress: () => {
-                                startModelDownload().catch((err) => {
-                                  Alert.alert(
-                                    'Download Failed',
-                                    err?.message ?? 'Unknown error. Please try again.',
-                                    [{ text: 'OK' }]
-                                  );
-                                });
-                              },
-                            },
-                          ]
-                        );
-                      } else if (!value && aiImagesEnabled) {
-                        setAiImagesEnabled(false);
-                      }
-                    }}
-                    trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-                    thumbColor={theme.colors.surface}
-                  />
-                </View>
-                <Text className="text-sm" style={{ color: theme.colors.textMuted }}>
-                  {!isNativeModulePresent
-                    ? 'Requires a physical device with the dev client build. Not available in the emulator.'
-                    : aiImagesEnabled
-                    ? 'AI artwork enabled. Tap ✨ on any entry to regenerate with AI.'
-                    : aiModelDownloading
-                    ? 'Downloading model…'
-                    : 'Off — procedural artwork used. No download required.'}
+                <Text className="text-base font-semibold mb-3" style={{ color: theme.colors.text }}>
+                  AI Images
                 </Text>
-                {aiModelDownloading && aiModelProgress !== null && (
+
+                <BackendSegmentedControl value={triState} onChange={handleTriStateChange} />
+
+                {/* Status / description line */}
+                <Text className="text-sm mt-2" style={{ color: theme.colors.textMuted }}>
+                  {triState === 'off'
+                    ? 'Off — procedural artwork only. No download or API key required.'
+                    : triState === 'mediapipe'
+                    ? !isNativeModulePresent
+                      ? 'Requires a physical device with the dev client build.'
+                      : aiModelDownloading
+                      ? 'Downloading model…'
+                      : aiImagesEnabled && aiBackend === 'mediapipe'
+                      ? 'On-device AI enabled. Tap ✨ on any entry to regenerate with AI.'
+                      : 'Tap to download the 1.9 GB on-device model.'
+                    : 'Cloud AI enabled. Images generated via FLUX.1 schnell (<2 s on Wi-Fi).'}
+                </Text>
+
+                {/* MediaPipe download progress */}
+                {triState === 'mediapipe' && aiModelDownloading && aiModelProgress !== null && (
                   <DownloadProgressBar fraction={aiModelProgress} />
+                )}
+
+                {/* Cloud settings — only shown when Cloud is selected */}
+                {triState === 'cloud' && (
+                  <View style={{ marginTop: 16, gap: 12 }}>
+                    {/* Provider picker */}
+                    <View>
+                      <Text style={{ fontSize: 13, color: theme.colors.textMuted, marginBottom: 4 }}>
+                        Provider
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => setShowProviderPicker((v) => !v)}
+                        style={{
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: 10,
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: theme.colors.border,
+                          backgroundColor: theme.colors.background,
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={{ color: theme.colors.text, fontSize: 15 }}>
+                          {PROVIDER_LABELS[cloudProvider]}
+                        </Text>
+                        <Text style={{ color: theme.colors.textMuted, fontSize: 13 }}>
+                          {showProviderPicker ? '▲' : '▼'}
+                        </Text>
+                      </TouchableOpacity>
+                      {showProviderPicker && (
+                        <View style={{
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: theme.colors.border,
+                          overflow: 'hidden',
+                          marginTop: 4,
+                        }}>
+                          {PROVIDERS.map((p) => (
+                            <TouchableOpacity
+                              key={p}
+                              onPress={() => {
+                                setCloudProvider(p);
+                                setShowProviderPicker(false);
+                                setTestResult(null);
+                              }}
+                              style={{
+                                padding: 12,
+                                backgroundColor: p === cloudProvider ? theme.colors.roseLight : theme.colors.surface,
+                              }}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={{ color: theme.colors.text, fontSize: 15 }}>
+                                {PROVIDER_LABELS[p]}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+
+                    {/* API Key input */}
+                    <View>
+                      <Text style={{ fontSize: 13, color: theme.colors.textMuted, marginBottom: 4 }}>
+                        API Key
+                      </Text>
+                      <TextInput
+                        style={{
+                          padding: 10,
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: theme.colors.border,
+                          backgroundColor: theme.colors.background,
+                          color: theme.colors.text,
+                          fontSize: 15,
+                        }}
+                        placeholder="Paste your API key here"
+                        placeholderTextColor={theme.colors.textMuted}
+                        value={apiKeyDraft}
+                        onChangeText={(t) => { setApiKeyDraft(t); setTestResult(null); }}
+                        onBlur={handleSaveApiKey}
+                        secureTextEntry
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                    </View>
+
+                    {/* Test button + result */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <TouchableOpacity
+                        onPress={handleTestKey}
+                        disabled={testing || apiKeyDraft.trim().length === 0}
+                        style={{
+                          paddingHorizontal: 16,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          backgroundColor: apiKeyDraft.trim().length > 0 ? theme.colors.primary : theme.colors.border,
+                          opacity: testing ? 0.6 : 1,
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        {testing
+                          ? <ActivityIndicator size="small" color="#fff" />
+                          : <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>Test</Text>
+                        }
+                      </TouchableOpacity>
+                      {testResult && (
+                        <Text style={{
+                          fontSize: 13,
+                          color: testResult.ok ? theme.colors.emerald : theme.colors.rose,
+                          flex: 1,
+                        }}>
+                          {testResult.ok ? '✓ ' : '✗ '}{testResult.message}
+                        </Text>
+                      )}
+                    </View>
+
+                    {/* Cost estimate + key storage note */}
+                    <Text style={{ fontSize: 12, color: theme.colors.textMuted, lineHeight: 18 }}>
+                      Estimated cost: ~$0.001 per image at 512×512. Your key is stored only on this device.
+                    </Text>
+                  </View>
                 )}
               </View>
             </View>

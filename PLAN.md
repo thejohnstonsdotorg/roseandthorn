@@ -165,7 +165,7 @@ app_settings
 2. **Export Security:** Zero friction — plain JSON export, no encryption or passphrase.
 3. **Photo Attachments:** Deferred to v1.1; now superseded by v1.4 Generative Imagery.
 4. **GitHub Repo:** `thejohnstonsdotorg/roseandthorn` (note: org is `thejohnstonsdotorg`, not `johnstonsdotorg`).
-5. **Generative Imagery:** Procedural Skia art default + opt-in on-device Stable Diffusion 1.5 via MediaPipe. AI off by default. Cloud image APIs explicitly rejected — offline-first invariant preserved. When LiteRT-LM ships a first-party image generation model, swap the backend behind `lib/imageGen.ts` without schema or UI changes.
+5. **Generative Imagery:** Procedural Skia art default + opt-in AI backends. The app is offline-first by default and remains fully usable with no network. There are now three image generation paths behind `lib/imageGen.ts`: (1) **Procedural** — always on, <100 ms, no download; (2) **MediaPipe on-device** — opt-in, SD 1.5, ~3–8 s, strictly offline, 1.9 GB download; (3) **Cloud** — opt-in, FLUX.1 schnell via family's own BYO API key (fal.ai / Fireworks / Together AI / Replicate / WaveSpeed), <2 s on home Wi-Fi. Cloud was added in v1.5 to address MediaPipe's latency on Pixel 10 Pro. When LiteRT-LM ships a first-party image generation model, add it as another backend without schema or UI changes.
 6. **Emoji character avatars:** Each member's `avatar_emoji` drives the AI image subject (e.g. 🦊 → "cute fox celebrating…"). The emoji→character mapping lives in `lib/imagePrompt.ts`. SD 1.5 responds better to plain-English character descriptions than raw emoji glyphs. Prompts are intentionally kept to ~15 tokens for speed.
 
 ---

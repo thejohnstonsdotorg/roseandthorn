@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS rose (
   created_at INTEGER NOT NULL,
   image_uri TEXT,
   image_seed INTEGER,
-  image_source TEXT CHECK(image_source IN ('procedural', 'mediapipe', 'apple-playground')),
+  image_source TEXT CHECK(image_source IN ('procedural', 'mediapipe', 'cloud', 'apple-playground')),
   image_prompt TEXT,
   FOREIGN KEY (session_id) REFERENCES session(id),
   FOREIGN KEY (member_id) REFERENCES member(id)
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS thorn (
   created_at INTEGER NOT NULL,
   image_uri TEXT,
   image_seed INTEGER,
-  image_source TEXT CHECK(image_source IN ('procedural', 'mediapipe', 'apple-playground')),
+  image_source TEXT CHECK(image_source IN ('procedural', 'mediapipe', 'cloud', 'apple-playground')),
   image_prompt TEXT,
   FOREIGN KEY (session_id) REFERENCES session(id),
   FOREIGN KEY (member_id) REFERENCES member(id)

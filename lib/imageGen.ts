@@ -11,8 +11,9 @@
 
 import { generateProceduralArt, type ProceduralArtParams, type ArtResult } from './proceduralArt';
 import { buildImagePrompt } from './imagePrompt';
+import { useSettingsStore } from '../stores/settingsStore';
 
-export type ImageSource = 'procedural' | 'mediapipe' | 'apple-playground';
+export type ImageSource = 'procedural' | 'mediapipe' | 'cloud' | 'apple-playground';
 
 export interface GenerateOptions {
   text: string;
@@ -86,6 +87,49 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
     }
   }
 
+  if (backend === 'cloud') {
+    try {
+      const { cloudProvider, cloudApiKey } = useSettingsStore.getState();
+      if (!cloudApiKey) throw new Error('cloud backend enabled but no API key configured');
+      const { generateCloudImage } = await import('./cloudImage');
+      const { documentDirectory, writeAsStringAsync, getInfoAsync, makeDirectoryAsync, EncodingType } =
+        await import('expo-file-system/legacy');
+      const imagesDir = `${documentDirectory ?? ''}roseandthorn/images/`;
+      const dirInfo = await getInfoAsync(imagesDir);
+      if (!dirInfo.exists) {
+        await makeDirectoryAsync(imagesDir, { intermediates: true });
+      }
+      const effectiveSeed = seed ?? Math.floor(Math.random() * 2147483647);
+      const { bytes, contentType } = await generateCloudImage({
+        prompt,
+        seed: effectiveSeed,
+        width: 512,
+        height: 512,
+        provider: cloudProvider,
+        apiKey: cloudApiKey,
+        timeoutMs: 8000,
+      });
+      // Derive extension from content type and swap the filename suffix
+      const ext = contentType === 'image/png' ? 'png' : 'jpg';
+      const baseFilename = filename.replace(/\.[^.]+$/, '');
+      const filePath = `${imagesDir}${baseFilename}-cloud.${ext}`;
+      // Convert Uint8Array to base64 for FileSystem.writeAsStringAsync
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const b64 = btoa(binary);
+      await writeAsStringAsync(filePath, b64, { encoding: EncodingType.Base64 });
+      return { uri: filePath, source: 'cloud', seed: effectiveSeed, prompt };
+    } catch (err) {
+      console.error('[imageGen] cloud generate failed:', err);
+      // Silent fallback to procedural
+      const params: ProceduralArtParams = { text, memberName, seed, mood };
+      const result = await generateProceduralArt(params, filename);
+      return { uri: result.uri, source: 'procedural', seed: result.seed, prompt };
+    }
+  }
+
   // Unimplemented backends fall back to procedural
   const params: ProceduralArtParams = { text, memberName, seed, mood };
   const result = await generateProceduralArt(params, filename);
@@ -107,6 +151,10 @@ export async function isAvailable(backend: ImageSource): Promise<boolean> {
     } catch {
       return false;
     }
+  }
+  if (backend === 'cloud') {
+    const { cloudApiKey } = useSettingsStore.getState();
+    return typeof cloudApiKey === 'string' && cloudApiKey.length > 0;
   }
   return false;
 }
