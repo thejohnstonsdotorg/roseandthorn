@@ -16,9 +16,10 @@ interface HistorySession {
 
 interface HistoryScreenProps {
   onBack: () => void;
+  onSelectSession: (sessionId: number) => void;
 }
 
-export function HistoryScreen({ onBack }: HistoryScreenProps) {
+export function HistoryScreen({ onBack, onSelectSession }: HistoryScreenProps) {
   const [sessions, setSessions] = useState<HistorySession[]>([]);
   const insets = useSafeAreaInsets();
 
@@ -72,10 +73,12 @@ export function HistoryScreen({ onBack }: HistoryScreenProps) {
           </View>
         ) : (
           sessions.map((session) => (
-            <View
+            <TouchableOpacity
               key={session.id}
+              onPress={() => onSelectSession(session.id)}
               className="p-4 rounded-2xl mb-3"
               style={{ backgroundColor: theme.colors.surface }}
+              activeOpacity={0.7}
             >
               <View className="flex-row items-start">
                 {session.thumbnail_uri ? (
@@ -103,17 +106,20 @@ export function HistoryScreen({ onBack }: HistoryScreenProps) {
                       </View>
                     ) : null}
                   </View>
-                  <View className="flex-row">
-                    <Text className="text-sm mr-4" style={{ color: theme.colors.rose }}>
-                      🌹 {session.rose_count} Roses
-                    </Text>
-                    <Text className="text-sm" style={{ color: theme.colors.emerald }}>
-                      🌵 {session.thorn_count} Thorns
-                    </Text>
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-row">
+                      <Text className="text-sm mr-4" style={{ color: theme.colors.rose }}>
+                        🌹 {session.rose_count} Roses
+                      </Text>
+                      <Text className="text-sm" style={{ color: theme.colors.emerald }}>
+                        🌵 {session.thorn_count} Thorns
+                      </Text>
+                    </View>
+                    <Text style={{ color: theme.colors.textMuted, fontSize: 18 }}>›</Text>
                   </View>
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>

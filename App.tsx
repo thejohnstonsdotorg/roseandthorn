@@ -10,6 +10,7 @@ import { RoseScreen } from './screens/RoseScreen';
 import { ThornScreen } from './screens/ThornScreen';
 import { SummaryScreen } from './screens/SummaryScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
+import { SessionDetailScreen } from './screens/SessionDetailScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { PassPrompt } from './components/PassPrompt';
 import { useSessionStore } from './stores/sessionStore';
@@ -17,7 +18,8 @@ import { useSettingsStore } from './stores/settingsStore';
 import { theme } from './lib/theme';
 
 export default function App() {
-  const [screen, setScreen] = useState<'home' | 'setup' | 'sessionStart' | 'rose' | 'thorn' | 'summary' | 'history' | 'settings'>('home');
+  const [screen, setScreen] = useState<'home' | 'setup' | 'sessionStart' | 'rose' | 'thorn' | 'summary' | 'history' | 'sessionDetail' | 'settings'>('home');
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const { presentMembers, currentIndex, nextMember, resetSession } = useSessionStore();
   const { loadSettings } = useSettingsStore();
 
@@ -85,7 +87,19 @@ export default function App() {
       case 'summary':
         return <SummaryScreen onFinish={handleSummaryFinish} />;
       case 'history':
-        return <HistoryScreen onBack={() => setScreen('home')} />;
+        return (
+          <HistoryScreen
+            onBack={() => setScreen('home')}
+            onSelectSession={(id) => { setSelectedSessionId(id); setScreen('sessionDetail'); }}
+          />
+        );
+      case 'sessionDetail':
+        return selectedSessionId !== null ? (
+          <SessionDetailScreen
+            sessionId={selectedSessionId}
+            onBack={() => setScreen('history')}
+          />
+        ) : null;
       case 'settings':
         return <SettingsScreen onBack={() => setScreen('home')} onResetFamily={() => setScreen('home')} />;
       default:
