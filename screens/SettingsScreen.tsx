@@ -9,6 +9,7 @@ import { theme } from '../lib/theme';
 import { isNativeModulePresent } from '../modules/expo-mediapipe-image-gen/src/ExpoMediaPipeImageGenModule';
 import { EmojiPicker } from '../components/EmojiPicker';
 import type { CloudProvider } from '../lib/cloudImage';
+import { ENABLE_CLOUD_AI } from '../lib/featureFlags';
 
 function DownloadProgressBar({ fraction }: { fraction: number }) {
   const pct = Math.round((fraction ?? 0) * 100);
@@ -45,7 +46,8 @@ function BackendSegmentedControl({
   const options: { key: 'off' | 'mediapipe' | 'cloud'; label: string }[] = [
     { key: 'off', label: 'Off' },
     { key: 'mediapipe', label: 'On-device' },
-    { key: 'cloud', label: 'Cloud' },
+    // Cloud option shown only when ENABLE_CLOUD_AI flag is on (dev/preview builds).
+    ...(ENABLE_CLOUD_AI ? [{ key: 'cloud' as const, label: 'Cloud' }] : []),
   ];
   return (
     <View style={{ flexDirection: 'row', borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.border }}>
@@ -369,7 +371,9 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
                       : aiImagesEnabled && aiBackend === 'mediapipe'
                       ? 'On-device AI enabled. Tap ✨ on any entry to regenerate with AI.'
                       : 'Tap to download the 1.9 GB on-device model.'
-                    : 'Cloud AI enabled. Images generated via FLUX.1 schnell (<2 s on Wi-Fi).'}
+                    : ENABLE_CLOUD_AI
+                    ? 'Cloud AI enabled. Images generated via FLUX.1 schnell (<2 s on Wi-Fi).'
+                    : 'On-device AI is the only available backend in this build.'}
                 </Text>
 
                 {/* MediaPipe download progress */}
@@ -377,8 +381,8 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
                   <DownloadProgressBar fraction={aiModelProgress} />
                 )}
 
-                {/* Cloud settings — only shown when Cloud is selected */}
-                {triState === 'cloud' && (
+                {/* Cloud settings — only shown when Cloud is selected AND flag is on */}
+                {ENABLE_CLOUD_AI && triState === 'cloud' && (
                   <View style={{ marginTop: 16, gap: 12 }}>
                     {/* Provider picker */}
                     <View>

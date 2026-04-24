@@ -1,0 +1,53 @@
+name: Release — EAS Build + Submit
+
+# Trigger: push a semver tag (e.g. git tag v1.1.0 && git push --tags)
+#
+# Flow:
+#   1. Type-check TypeScript
+#   2. EAS build production AAB (cloud build, ~10-20 min)
+#   3. EAS submit to Play Store internal testing track
+#
+# Required secrets (set in repo Settings → Secrets → Actions):
+#   EXPO_TOKEN  — Expo account access token (expo.dev → Account → Access Tokens)
+#
+# The EAS service account for Play Console is configured via `eas credentials`
+# and stored on EAS servers — no JSON key file needed in this repo.
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  release:
+    name: EAS Build & Submit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: node_modules/.bin/tsc --noEmit
+
+      - name: Install EAS CLI
+        run: npm install --global eas-cli
+
+      - name: EAS Build (production AAB)
+        run: eas build --platform android --profile production --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: EAS Submit (internal testing track)
+        run: eas submit --platform android --latest --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}

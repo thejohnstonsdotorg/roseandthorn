@@ -12,6 +12,7 @@
 import { generateProceduralArt, type ProceduralArtParams, type ArtResult } from './proceduralArt';
 import { buildImagePrompt } from './imagePrompt';
 import { useSettingsStore } from '../stores/settingsStore';
+import { ENABLE_CLOUD_AI } from './featureFlags';
 
 export type ImageSource = 'procedural' | 'mediapipe' | 'cloud' | 'apple-playground';
 
@@ -88,6 +89,13 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
   }
 
   if (backend === 'cloud') {
+    // Cloud AI is feature-flagged off in production builds (v1.0).
+    // Fall through to procedural silently if the flag is not enabled.
+    if (!ENABLE_CLOUD_AI) {
+      const params: ProceduralArtParams = { text, memberName, seed, mood };
+      const result = await generateProceduralArt(params, filename);
+      return { uri: result.uri, source: 'procedural', seed: result.seed, prompt };
+    }
     try {
       const { cloudProvider, cloudApiKey } = useSettingsStore.getState();
       if (!cloudApiKey) throw new Error('cloud backend enabled but no API key configured');
@@ -153,6 +161,7 @@ export async function isAvailable(backend: ImageSource): Promise<boolean> {
     }
   }
   if (backend === 'cloud') {
+    if (!ENABLE_CLOUD_AI) return false;
     const { cloudApiKey } = useSettingsStore.getState();
     return typeof cloudApiKey === 'string' && cloudApiKey.length > 0;
   }

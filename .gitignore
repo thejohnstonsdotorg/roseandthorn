@@ -18,6 +18,13 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# Release keystore and signing properties (never commit)
+android/gradle.properties
+android/keystore.properties
+**/upload-keystore.jks
+**/release.keystore
+**/roseandthorn-upload.jks
+
 # Metro
 .metro-health-check*
 
