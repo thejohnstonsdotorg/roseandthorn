@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSessionStore, SessionEntry } from '../stores/sessionStore';
 import { getDatabase } from '../db/migrations';
@@ -65,67 +65,79 @@ export function SummaryScreen({ onFinish }: SummaryScreenProps) {
   const insets = useSafeAreaInsets();
 
   const handleSave = async () => {
-    const db = await getDatabase();
-    const now = Date.now();
+    try {
+      const db = await getDatabase();
+      const now = Date.now();
 
-    // Get family
-    const families = await db.getAllAsync<{ id: number }>('SELECT id FROM family LIMIT 1');
-    if (families.length === 0) return;
-    const familyId = families[0].id;
+      // Get family
+      const families = await db.getAllAsync<{ id: number }>('SELECT id FROM family LIMIT 1');
+      if (families.length === 0) return;
+      const familyId = families[0].id;
 
-    // Create session
-    const sessionResult = await db.runAsync(
-      'INSERT INTO session (family_id, date, closing_word, created_at) VALUES (?, ?, ?, ?)',
-      [familyId, now, word.trim(), now]
-    );
-    const sessionId = sessionResult.lastInsertRowId;
+      // Create session
+      const sessionResult = await db.runAsync(
+        'INSERT INTO session (family_id, date, closing_word, created_at) VALUES (?, ?, ?, ?)',
+        [familyId, now, word.trim(), now]
+      );
+      const sessionId = sessionResult.lastInsertRowId;
 
-    // Save roses and thorns
-    for (const entry of entries) {
-      if (entry.rose) {
-        await db.runAsync(
-          `INSERT INTO rose (session_id, member_id, content, deepening_prompt, deepening_answer, created_at,
-           image_uri, image_seed, image_source, image_prompt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            sessionId,
-            entry.memberId,
-            entry.rose,
-            entry.rosePrompt,
-            entry.roseAnswer,
-            now,
-            entry.roseImageUri ?? null,
-            entry.roseImageSeed ?? null,
-            entry.roseImageSource ?? null,
-            entry.roseImagePrompt ?? null,
-          ]
-        );
+      // Save roses and thorns
+      for (const entry of entries) {
+        if (entry.rose) {
+          // Clamp image_source to values the DB accepts; drop if unrecognised
+          const roseSource = ['procedural', 'mediapipe', 'cloud', 'apple-playground'].includes(
+            entry.roseImageSource ?? ''
+          ) ? entry.roseImageSource : null;
+          await db.runAsync(
+            `INSERT INTO rose (session_id, member_id, content, deepening_prompt, deepening_answer, created_at,
+             image_uri, image_seed, image_source, image_prompt)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              sessionId,
+              entry.memberId,
+              entry.rose,
+              entry.rosePrompt,
+              entry.roseAnswer,
+              now,
+              entry.roseImageUri ?? null,
+              entry.roseImageSeed ?? null,
+              roseSource ?? null,
+              entry.roseImagePrompt ?? null,
+            ]
+          );
+        }
+        if (entry.thorn) {
+          const thornSource = ['procedural', 'mediapipe', 'cloud', 'apple-playground'].includes(
+            entry.thornImageSource ?? ''
+          ) ? entry.thornImageSource : null;
+          await db.runAsync(
+            `INSERT INTO thorn (session_id, member_id, content, deepening_prompt, deepening_answer, created_at,
+             image_uri, image_seed, image_source, image_prompt)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              sessionId,
+              entry.memberId,
+              entry.thorn,
+              entry.thornPrompt,
+              entry.thornAnswer,
+              now,
+              entry.thornImageUri ?? null,
+              entry.thornImageSeed ?? null,
+              thornSource ?? null,
+              entry.thornImagePrompt ?? null,
+            ]
+          );
+        }
       }
-      if (entry.thorn) {
-        await db.runAsync(
-          `INSERT INTO thorn (session_id, member_id, content, deepening_prompt, deepening_answer, created_at,
-           image_uri, image_seed, image_source, image_prompt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            sessionId,
-            entry.memberId,
-            entry.thorn,
-            entry.thornPrompt,
-            entry.thornAnswer,
-            now,
-            entry.thornImageUri ?? null,
-            entry.thornImageSeed ?? null,
-            entry.thornImageSource ?? null,
-            entry.thornImagePrompt ?? null,
-          ]
-        );
-      }
+
+      setSaved(true);
+      setTimeout(() => {
+        onFinish();
+      }, 1500);
+    } catch (err) {
+      console.error('[SummaryScreen] handleSave failed:', err);
+      Alert.alert('Save Failed', 'Could not save the session. Please try again.');
     }
-
-    setSaved(true);
-    setTimeout(() => {
-      onFinish();
-    }, 1500);
   };
 
   return (

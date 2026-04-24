@@ -40,46 +40,46 @@ async function applyMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
   if (currentVersion < 3) {
     // Migration 3: relax CHECK constraint on rose/thorn image_source to allow 'cloud' (v1.5)
     // SQLite cannot ALTER a CHECK constraint, so we must rename → create new → copy → drop.
-    await database.execAsync(`
-      ALTER TABLE rose RENAME TO rose_old;
-      CREATE TABLE rose (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id INTEGER NOT NULL,
-        member_id INTEGER NOT NULL,
-        content TEXT NOT NULL,
-        deepening_prompt TEXT,
-        deepening_answer TEXT,
-        created_at INTEGER NOT NULL,
-        image_uri TEXT,
-        image_seed INTEGER,
-        image_source TEXT CHECK(image_source IN ('procedural', 'mediapipe', 'cloud', 'apple-playground')),
-        image_prompt TEXT,
-        FOREIGN KEY (session_id) REFERENCES session(id),
-        FOREIGN KEY (member_id) REFERENCES member(id)
-      );
-      INSERT INTO rose SELECT * FROM rose_old;
-      DROP TABLE rose_old;
-    `);
-    await database.execAsync(`
-      ALTER TABLE thorn RENAME TO thorn_old;
-      CREATE TABLE thorn (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id INTEGER NOT NULL,
-        member_id INTEGER NOT NULL,
-        content TEXT NOT NULL,
-        deepening_prompt TEXT,
-        deepening_answer TEXT,
-        created_at INTEGER NOT NULL,
-        image_uri TEXT,
-        image_seed INTEGER,
-        image_source TEXT CHECK(image_source IN ('procedural', 'mediapipe', 'cloud', 'apple-playground')),
-        image_prompt TEXT,
-        FOREIGN KEY (session_id) REFERENCES session(id),
-        FOREIGN KEY (member_id) REFERENCES member(id)
-      );
-      INSERT INTO thorn SELECT * FROM thorn_old;
-      DROP TABLE thorn_old;
-    `);
+    // Each statement must be a separate execAsync call — expo-sqlite does not reliably
+    // execute multi-statement strings as a single batch.
+    await database.execAsync('ALTER TABLE rose RENAME TO rose_old');
+    await database.execAsync(`CREATE TABLE rose (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id INTEGER NOT NULL,
+      member_id INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      deepening_prompt TEXT,
+      deepening_answer TEXT,
+      created_at INTEGER NOT NULL,
+      image_uri TEXT,
+      image_seed INTEGER,
+      image_source TEXT CHECK(image_source IN ('procedural', 'mediapipe', 'cloud', 'apple-playground')),
+      image_prompt TEXT,
+      FOREIGN KEY (session_id) REFERENCES session(id),
+      FOREIGN KEY (member_id) REFERENCES member(id)
+    )`);
+    await database.execAsync('INSERT INTO rose SELECT * FROM rose_old');
+    await database.execAsync('DROP TABLE rose_old');
+
+    await database.execAsync('ALTER TABLE thorn RENAME TO thorn_old');
+    await database.execAsync(`CREATE TABLE thorn (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id INTEGER NOT NULL,
+      member_id INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      deepening_prompt TEXT,
+      deepening_answer TEXT,
+      created_at INTEGER NOT NULL,
+      image_uri TEXT,
+      image_seed INTEGER,
+      image_source TEXT CHECK(image_source IN ('procedural', 'mediapipe', 'cloud', 'apple-playground')),
+      image_prompt TEXT,
+      FOREIGN KEY (session_id) REFERENCES session(id),
+      FOREIGN KEY (member_id) REFERENCES member(id)
+    )`);
+    await database.execAsync('INSERT INTO thorn SELECT * FROM thorn_old');
+    await database.execAsync('DROP TABLE thorn_old');
+
     await database.execAsync('PRAGMA user_version = 3');
   }
 }
