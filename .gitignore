@@ -40,6 +40,10 @@ yarn-error.*
 /ios
 /android
 
+# Local Expo module build artifacts
+modules/**/android/build/
+classes.jar
+
 # Kilo
 .kilo/plans/
 
