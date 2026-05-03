@@ -111,7 +111,113 @@ app_settings
 
 ---
 
-## Phase 4: Future Iterations & Roadmap
+## Phase 4: Public Store Listing Readiness
+
+Target: first public Android listing on Google Play. iOS/App Store can follow after the Android listing is live and the release process is proven.
+
+### Current release posture
+- [x] Android package name set: `com.kencjohnston.roseandthorn`
+- [x] EAS project configured in `app.json`
+- [x] Production build profile emits Android App Bundle (`.aab`)
+- [x] Production build disables Cloud AI with `EXPO_PUBLIC_ENABLE_CLOUD_AI=false`
+- [x] Release signing plugin present for EAS-managed Android credentials
+- [x] Privacy policy exists at `docs/privacy.html`
+- [x] App requests no runtime permissions in `app.json`
+- [x] Repeatable store-readiness checks automated via `npm run store:check`
+- [x] CI runs `npm run store:check` on pull requests and `master` pushes
+- [x] Tagged releases run strict store-readiness checks before EAS Build/Submit
+- [x] Public privacy policy URL hosted over HTTPS and reachable from the Play Console
+- [ ] Production release candidate installed and smoke-tested from a Play internal test track
+- [x] Store listing assets generated locally and validated by strict preflight
+- [ ] Store listing assets uploaded to Play Console
+- [ ] Google Play Data Safety form completed and consistent with the production build
+- [ ] Public release promoted from internal/closed testing after review
+
+### Automated Release Gates
+- [x] `scripts/bump-version.mjs` keeps `package.json` and `app.json` versions in sync.
+- [x] `scripts/check-store-readiness.mjs` validates repeatable release metadata: package name, version sync, permissions, production EAS config, Cloud AI production flag, privacy policy content, listing metadata, icon dimensions, feature graphic, and screenshot count/dimensions.
+- [x] `npm run store:check` is non-strict for normal CI: launch assets that are not ready yet are reported as warnings so regular development is not blocked.
+- [x] `npm run store:check:strict` fails on missing launch assets and is used by the tag-triggered release workflow.
+- [x] `npm run release:preflight` runs typecheck plus strict store-readiness checks before manually starting a release.
+- [x] `.github/workflows/ci.yml` runs typecheck and store-readiness checks on PRs and `master` pushes.
+- [x] `.github/workflows/pages.yml` publishes `docs/` to GitHub Pages when docs change, after the one-time Pages setting is enabled.
+- [x] `.github/workflows/release.yml` typechecks, runs strict store-readiness checks, builds the production AAB, and submits it to the Play internal testing track on semver tags.
+- [x] Store listing copy is captured in `docs/store-assets/listing.json` so description/privacy URL drift is reviewable and checked.
+- [x] Screenshot capture is partially automated by `npm run store:capture-screenshots`; screen navigation remains manual because it is a real-device visual QA step.
+
+### One-Time Owner Actions
+- [x] Enable GitHub Pages source: Repo → Settings → Pages → Source: GitHub Actions.
+- [x] Create or verify Google Play developer account.
+- [x] Create the Play Console app record.
+- [x] Configure EAS/Play service account credentials for `eas submit`.
+- [x] Create the first production signing credentials in EAS, if they do not already exist.
+- [x] Add required GitHub Actions secret: `EXPO_TOKEN`.
+- [ ] Add internal testers in Play Console.
+- [ ] Complete Play Console forms that cannot be fully automated: App access, Ads, Content rating, Target audience, Data Safety, and policy declarations.
+- [ ] Upload the first feature graphic and screenshot set to Play Console.
+
+### Store Listing Assets
+- [x] App name: `Rose & Thorn`
+- [x] Short description (<= 80 chars): `A warm family dinner ritual for sharing daily highs and lows.`
+- [x] Store copy lives in `docs/store-assets/listing.json` and is validated by `npm run store:check`.
+- [x] Play listing icon: export `docs/store-assets/icon.png` as 512 x 512 PNG from `assets/icon.png` and verify it is readable at small sizes.
+- [x] Feature graphic: create 1024 x 500 PNG/JPG with warm dinner-table visual language and no device frame requirement.
+- [x] Draft phone screenshots generated with `npm run store:generate-screenshots` for listing setup and preflight.
+- [ ] Replace draft phone screenshots with real-device screenshots from Pixel 10 Pro using `npm run store:capture-screenshots` before final production promotion.
+- [ ] Screenshot set should cover: welcome/setup, session start, Rose entry, Thorn/deepening prompt, summary artwork, history, settings/privacy controls.
+- [ ] Optional tablet screenshots: only if tablet layout has been checked; otherwise keep Android phone-first.
+
+### Compliance & Policy
+- [x] Host `docs/privacy.html` on a stable HTTPS URL: `https://thejohnstonsdotorg.github.io/roseandthorn/privacy.html`.
+- [x] Update privacy policy dates before submission.
+- [ ] Verify policy text matches the production build: Cloud AI is disabled in v1.0; on-device MediaPipe model download is opt-in; export leaves the device only by user action.
+- [ ] Complete Play Console Data Safety as: no developer-collected/shared data, no ads, no analytics, no location, no account creation, user-initiated export only.
+- [ ] Note local user-generated content exists on-device only: family/member names, Rose/Thorn text, prompts, artwork files, settings.
+- [ ] Select content rating accurately. Current policy says Everyone 13+; verify the Play questionnaire outcome and update policy/listing if Google assigns a different rating.
+- [ ] Declare no ads.
+- [ ] Confirm target audience is families/general audience, not specifically children under 13, unless the app is prepared for the full Families policy requirements.
+- [ ] Confirm the 1.9 GB optional model download is clearly disclosed in Settings and store copy so users are not surprised.
+
+### Release Candidate Checklist
+- [ ] Decide the first public version number and release code. Keep `version` aligned between `package.json` and `app.json`; EAS remote versioning handles Android versionCode.
+- [ ] Run `npm install` from a clean checkout.
+- [ ] Run `node_modules/.bin/tsc --noEmit` and fix all real type errors.
+- [ ] Run `npm run store:check:strict` and fix all failures before tagging a release.
+- [ ] Run `npx expo prebuild --platform android` to verify native project generation.
+- [ ] Build a production AAB with `npm run build:android`.
+- [ ] Submit to Play internal track with `npm run submit:android` or upload the `.aab` manually.
+- [ ] Install through Play internal testing, not just `adb install`, to validate signing, installability, package metadata, and Play delivery.
+- [ ] Smoke-test on Pixel 10 Pro: first launch, setup in < 60s, 4-person session in < 10m, summary save, history detail, settings add/remove member, emoji picker, export, reset all data.
+- [ ] Test offline behavior: complete a session without internet; procedural artwork must work.
+- [ ] Test opt-in on-device AI path separately: model download, cancellation/retry, generation, reset data clears toggle/files as expected.
+- [ ] Confirm Cloud AI UI is absent in the production build.
+- [ ] Confirm no unexpected Android permissions appear in the generated manifest or Play Console app bundle explorer.
+- [ ] Confirm app startup, navigation, and text entry work with large font settings.
+- [ ] Confirm app does not crash after force quit/relaunch with existing local data.
+
+### Play Console Steps
+- [x] Create or verify Google Play developer account.
+- [x] Create app: default language, app name, app/game = app, free/paid = free for v1.0.
+- [ ] Complete App access: no special access required.
+- [ ] Complete Ads: no ads.
+- [ ] Complete Content rating questionnaire.
+- [ ] Complete Target audience and content questionnaire.
+- [ ] Complete Data Safety with answers matching the privacy policy and production build.
+- [ ] Add privacy policy URL.
+- [ ] Add store listing copy and graphics.
+- [ ] Create internal test release and add testers.
+- [ ] Resolve all Play Console warnings or policy blocks.
+- [ ] Promote to closed/open testing if required by the account's Play testing policy, then promote to production when eligible.
+
+### Recommended Scope Before Public Listing
+- [ ] Keep v1.0 Android-only and offline-first.
+- [ ] Keep Cloud AI disabled for production until the privacy policy, Data Safety form, BYO-key UX, and external data transfer disclosures are updated.
+- [ ] Do not block public listing on future v1.1-v2 roadmap items unless internal testing shows a launch-blocking issue.
+- [ ] Treat these as launch blockers only: data loss, session persistence failure, reset/export failure, crashes, misleading privacy disclosures, unexpected permissions, impossible model download recovery, or Play policy rejection.
+
+---
+
+## Phase 5: Future Iterations & Roadmap
 
 ### v1.1 — Polish & Delight
 - [ ] Animated transitions between speakers (gentle page curl or fade)

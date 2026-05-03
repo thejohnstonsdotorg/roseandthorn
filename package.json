@@ -11,6 +11,11 @@
     "build:preview": "eas build --platform android --profile preview",
     "submit:android": "eas submit --platform android --latest",
     "release:android": "npm run build:android && npm run submit:android",
+    "store:check": "node scripts/check-store-readiness.mjs",
+    "store:check:strict": "node scripts/check-store-readiness.mjs --strict",
+    "store:generate-screenshots": "node scripts/generate-store-screenshots.mjs",
+    "store:capture-screenshots": "bash scripts/capture-screenshots.sh",
+    "release:preflight": "node_modules/.bin/tsc --noEmit && npm run store:check:strict",
     "version": "node scripts/bump-version.mjs"
   },
   "dependencies": {

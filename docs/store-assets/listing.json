@@ -1,0 +1,9 @@
+{
+  "appName": "Rose & Thorn",
+  "shortDescription": "A warm family dinner ritual for sharing daily highs and lows.",
+  "fullDescription": "Rose & Thorn helps families slow down at dinner and share the highs and lows of the day. One phone is passed around the table, each person records a Rose, a Thorn, and a gentle follow-up reflection, and the app saves a warm family history to revisit later.\n\nThe app is designed for a calm, offline-first ritual: no accounts, no ads, no analytics, and no required internet connection. Family names, member names, prompts, sessions, and artwork stay on the device in local storage unless you choose to export your history through the system share sheet.\n\nEvery entry includes procedural artwork by default. Optional on-device AI artwork can be enabled from Settings and requires a large model download, which is disclosed before use. Cloud AI is disabled in the public v1.0 production build.\n\nUse Rose & Thorn to make daily gratitude, curiosity, and kindness easier to practice together.",
+  "privacyPolicyUrl": "https://thejohnstonsdotorg.github.io/roseandthorn/privacy.html",
+  "category": "Lifestyle",
+  "containsAds": false,
+  "cloudAiProductionEnabled": false
+}

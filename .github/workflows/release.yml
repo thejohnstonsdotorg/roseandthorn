@@ -39,6 +39,9 @@ jobs:
       - name: Type check
         run: node_modules/.bin/tsc --noEmit
 
+      - name: Store readiness checks
+        run: npm run store:check:strict
+
       - name: Install EAS CLI
         run: npm install --global eas-cli
 
