@@ -12,7 +12,7 @@
       }
     }
   },
-  "peerDependencies": {
+  "dependencies": {
     "expo": "*",
     "expo-modules-core": "*"
   }
