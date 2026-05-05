@@ -30,7 +30,7 @@
         "autoIncrement": true
       },
       "env": {
-        "EXPO_PUBLIC_ENABLE_CLOUD_AI": "false",
+        "EXPO_PUBLIC_ENABLE_CLOUD_AI": "true",
         "EXPO_NEW_ARCH_ENABLED": "false"
       }
     }

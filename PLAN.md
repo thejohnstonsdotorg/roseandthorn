@@ -129,8 +129,8 @@ Target: first public Android listing on Google Play. iOS/App Store can follow af
 - [x] Public privacy policy URL hosted over HTTPS and reachable from the Play Console
 - [ ] Production release candidate installed and smoke-tested from a Play internal test track
 - [x] Store listing assets generated locally and validated by strict preflight
-- [ ] Store listing assets uploaded to Play Console
-- [ ] Google Play Data Safety form completed and consistent with the production build
+- [x] Store listing assets uploaded to Play Console
+- [x] Google Play Data Safety form completed and consistent with the production build
 - [ ] Public release promoted from internal/closed testing after review
 
 ### Automated Release Gates
@@ -152,9 +152,9 @@ Target: first public Android listing on Google Play. iOS/App Store can follow af
 - [x] Configure EAS/Play service account credentials for `eas submit`.
 - [x] Create the first production signing credentials in EAS, if they do not already exist.
 - [x] Add required GitHub Actions secret: `EXPO_TOKEN`.
-- [ ] Add internal testers in Play Console.
-- [ ] Complete Play Console forms that cannot be fully automated: App access, Ads, Content rating, Target audience, Data Safety, and policy declarations.
-- [ ] Upload the first feature graphic and screenshot set to Play Console.
+- [x] Add internal testers in Play Console.
+- [x] Complete Play Console forms that cannot be fully automated: App access, Ads, Content rating, Target audience, Data Safety, and policy declarations.
+- [x] Upload the first feature graphic and screenshot set to Play Console.
 
 ### Store Listing Assets
 - [x] App name: `Rose & Thorn`
@@ -171,7 +171,7 @@ Target: first public Android listing on Google Play. iOS/App Store can follow af
 - [x] Host `docs/privacy.html` on a stable HTTPS URL: `https://thejohnstonsdotorg.github.io/roseandthorn/privacy.html`.
 - [x] Update privacy policy dates before submission.
 - [ ] Verify policy text matches the production build: Cloud AI is disabled in v1.0; on-device MediaPipe model download is opt-in; export leaves the device only by user action.
-- [ ] Complete Play Console Data Safety as: no developer-collected/shared data, no ads, no analytics, no location, no account creation, user-initiated export only.
+- [x] Complete Play Console Data Safety as: no developer-collected/shared data, no ads, no analytics, no location, no account creation, user-initiated export only.
 - [ ] Note local user-generated content exists on-device only: family/member names, Rose/Thorn text, prompts, artwork files, settings.
 - [ ] Select content rating accurately. Current policy says Everyone 13+; verify the Play questionnaire outcome and update policy/listing if Google assigns a different rating.
 - [ ] Declare no ads.
@@ -198,14 +198,14 @@ Target: first public Android listing on Google Play. iOS/App Store can follow af
 ### Play Console Steps
 - [x] Create or verify Google Play developer account.
 - [x] Create app: default language, app name, app/game = app, free/paid = free for v1.0.
-- [ ] Complete App access: no special access required.
-- [ ] Complete Ads: no ads.
-- [ ] Complete Content rating questionnaire.
-- [ ] Complete Target audience and content questionnaire.
-- [ ] Complete Data Safety with answers matching the privacy policy and production build.
-- [ ] Add privacy policy URL.
-- [ ] Add store listing copy and graphics.
-- [ ] Create internal test release and add testers.
+- [x] Complete App access: no special access required.
+- [x] Complete Ads: no ads.
+- [x] Complete Content rating questionnaire.
+- [x] Complete Target audience and content questionnaire.
+- [x] Complete Data Safety with answers matching the privacy policy and production build.
+- [x] Add privacy policy URL.
+- [x] Add store listing copy and graphics.
+- [x] Create internal test release and add testers.
 - [ ] Resolve all Play Console warnings or policy blocks.
 - [ ] Promote to closed/open testing if required by the account's Play testing policy, then promote to production when eligible.
 

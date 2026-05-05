@@ -21,12 +21,11 @@
  * Whether Cloud AI image generation (FLUX.1 schnell via BYO API key) is
  * available in this build.
  *
- * - `false` in `production` profile (v1.0) — simplifies Data Safety declaration
- *   ("no data collected, no data shared").
- * - `true` in `development` and `preview` profiles so the feature remains
- *   testable during development.
- * - Will be flipped to `true` in the `production` profile for v1.1 once the
- *   Play Store listing has been updated with the Cloud AI Data Safety disclosure.
+ * - `true` in `production` profile (v1.1) — users can supply their own API key
+ *   for cloud-based image generation.
+ * - `true` in `development` and `preview` profiles for testing.
+ * - Requires Play Store Data Safety disclosure: data is sent to cloud providers
+ *   (fal.ai, Fireworks, Together AI, Replicate, WaveSpeed) for image generation.
  */
 export const ENABLE_CLOUD_AI: boolean =
   process.env.EXPO_PUBLIC_ENABLE_CLOUD_AI === 'true';
