@@ -127,7 +127,8 @@ Target: first public Android listing on Google Play. iOS/App Store can follow af
 - [x] CI runs `npm run store:check` on pull requests and `master` pushes
 - [x] Tagged releases run strict store-readiness checks before EAS Build/Submit
 - [x] Public privacy policy URL hosted over HTTPS and reachable from the Play Console
-- [ ] Production release candidate installed and smoke-tested from a Play internal test track
+- [x] Production release candidate submitted to Play internal testing track
+- [x] Production release candidate installed and smoke-tested from a Play internal test track
 - [x] Store listing assets generated locally and validated by strict preflight
 - [x] Store listing assets uploaded to Play Console
 - [x] Google Play Data Safety form completed and consistent with the production build
@@ -185,12 +186,12 @@ Target: first public Android listing on Google Play. iOS/App Store can follow af
 - [ ] Run `npm run store:check:strict` and fix all failures before tagging a release.
 - [ ] Run `npx expo prebuild --platform android` to verify native project generation.
 - [ ] Build a production AAB with `npm run build:android`.
-- [ ] Submit to Play internal track with `npm run submit:android` or upload the `.aab` manually.
-- [ ] Install through Play internal testing, not just `adb install`, to validate signing, installability, package metadata, and Play delivery.
-- [ ] Smoke-test on Pixel 10 Pro: first launch, setup in < 60s, 4-person session in < 10m, summary save, history detail, settings add/remove member, emoji picker, export, reset all data.
-- [ ] Test offline behavior: complete a session without internet; procedural artwork must work.
+- [x] Submit to Play internal track with `npm run submit:android` or upload the `.aab` manually.
+- [x] Install through Play internal testing, not just `adb install`, to validate signing, installability, package metadata, and Play delivery.
+- [x] Smoke-test on Pixel 10 Pro: first launch, setup in < 60s, 4-person session in < 10m, summary save, history detail, settings add/remove member, emoji picker, export, reset all data.
+- [x] Test offline behavior: complete a session without internet; procedural artwork must work.
 - [ ] Test opt-in on-device AI path separately: model download, cancellation/retry, generation, reset data clears toggle/files as expected.
-- [ ] Confirm Cloud AI UI is absent in the production build.
+- [x] Confirm Cloud AI UI is absent in the production build.
 - [ ] Confirm no unexpected Android permissions appear in the generated manifest or Play Console app bundle explorer.
 - [ ] Confirm app startup, navigation, and text entry work with large font settings.
 - [ ] Confirm app does not crash after force quit/relaunch with existing local data.
@@ -206,7 +207,7 @@ Target: first public Android listing on Google Play. iOS/App Store can follow af
 - [x] Add privacy policy URL.
 - [x] Add store listing copy and graphics.
 - [x] Create internal test release and add testers.
-- [ ] Resolve all Play Console warnings or policy blocks.
+- [x] Resolve all Play Console warnings or policy blocks.
 - [ ] Promote to closed/open testing if required by the account's Play testing policy, then promote to production when eligible.
 
 ### Recommended Scope Before Public Listing
