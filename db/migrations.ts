@@ -6,6 +6,19 @@ let db: SQLite.SQLiteDatabase | null = null;
 // Current target schema version
 const CURRENT_VERSION = 3;
 
+/**
+ * Live check — asks SQLite directly whether a table exists.
+ * Never use a stale cached Set for existence checks after a RENAME, because
+ * ALTER TABLE … RENAME does not update an in-memory snapshot.
+ */
+async function tableExists(database: SQLite.SQLiteDatabase, name: string): Promise<boolean> {
+  const row = await database.getFirstAsync<{ name: string }>(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name=?`,
+    [name]
+  );
+  return row?.name === name;
+}
+
 async function applyMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
   // Read the current schema version
   const versionResult = await database.getFirstAsync<{ user_version: number }>(
@@ -40,17 +53,19 @@ async function applyMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
   // Migration 3: relax CHECK constraint on rose/thorn image_source to allow 'cloud' (v1.5)
   // Also recovers from a partial migration that left rose_old/thorn_old on disk with
   // user_version already at 3 (caused by multi-statement execAsync running only first stmt).
+  //
+  // IMPORTANT: use tableExists() (live SQLite query) — never a stale in-memory Set —
+  // to check for rose_old/thorn_old after the RENAME step. The old code built tableNames
+  // before the rename, so tableNames.has('rose_old') was always false on the rename path,
+  // silently skipping the INSERT FROM rose_old recovery step.
   {
-    const tables = await database.getAllAsync<{ name: string }>(
-      `SELECT name FROM sqlite_master WHERE type='table'`
-    );
-    const tableNames = new Set(tables.map((t) => t.name));
-    const needsRose = !tableNames.has('rose') || currentVersion < 3;
-    const needsThorn = !tableNames.has('thorn') || currentVersion < 3;
+    const needsRose = !(await tableExists(database, 'rose')) || currentVersion < 3;
+    const needsThorn = !(await tableExists(database, 'thorn')) || currentVersion < 3;
 
     if (needsRose) {
-      // If a partial migration left rose_old behind, use it; otherwise rename existing rose
-      if (!tableNames.has('rose_old') && tableNames.has('rose')) {
+      // If a partial migration left rose_old behind, skip the rename step.
+      // Otherwise rename the existing rose table to preserve data.
+      if (!(await tableExists(database, 'rose_old')) && (await tableExists(database, 'rose'))) {
         await database.execAsync('ALTER TABLE rose RENAME TO rose_old');
       }
       await database.execAsync(`CREATE TABLE IF NOT EXISTS rose (
@@ -68,14 +83,16 @@ async function applyMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
         FOREIGN KEY (session_id) REFERENCES session(id),
         FOREIGN KEY (member_id) REFERENCES member(id)
       )`);
-      if (tableNames.has('rose_old')) {
+      // Live re-check: rose_old now exists iff the rename above ran (or was left
+      // from a prior partial migration). In either case, copy and drop.
+      if (await tableExists(database, 'rose_old')) {
         await database.execAsync('INSERT INTO rose SELECT * FROM rose_old');
         await database.execAsync('DROP TABLE rose_old');
       }
     }
 
     if (needsThorn) {
-      if (!tableNames.has('thorn_old') && tableNames.has('thorn')) {
+      if (!(await tableExists(database, 'thorn_old')) && (await tableExists(database, 'thorn'))) {
         await database.execAsync('ALTER TABLE thorn RENAME TO thorn_old');
       }
       await database.execAsync(`CREATE TABLE IF NOT EXISTS thorn (
@@ -93,7 +110,7 @@ async function applyMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
         FOREIGN KEY (session_id) REFERENCES session(id),
         FOREIGN KEY (member_id) REFERENCES member(id)
       )`);
-      if (tableNames.has('thorn_old')) {
+      if (await tableExists(database, 'thorn_old')) {
         await database.execAsync('INSERT INTO thorn SELECT * FROM thorn_old');
         await database.execAsync('DROP TABLE thorn_old');
       }

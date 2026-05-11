@@ -8,6 +8,26 @@ import { EntryArtwork } from '../components/EntryArtwork';
 import { useEntryImage } from '../hooks/useEntryImage';
 import type { ImageSource } from '../lib/imageGen';
 
+/**
+ * Clamp an image_source string to the values the DB CHECK constraint accepts.
+ * Returns null for any unrecognised value so the DB column stays NULL rather
+ * than triggering a CHECK constraint violation.
+ *
+ * Known failure modes for handleSave (ranked by likelihood for internal-track v1.0.0):
+ *   1. CHECK constraint on image_source — old DB may have constraint without 'cloud'.
+ *      Fixed by this clamp + migration-3 stale-cache fix in db/migrations.ts.
+ *   2. Migration-3 stale-cache bug — tableNames Set built before RENAME, so rose_old
+ *      recovery INSERT never ran. Fixed in db/migrations.ts B.3.
+ *   3. Double-tap re-entry — two concurrent INSERTs for the same session.
+ *      Fixed by the `saving` guard (B.2).
+ *   4. NULL content in NOT NULL column — entry.rose/thorn guarded by truthiness
+ *      check below; explicit undefined log added for prompt/answer fields.
+ */
+function clampImageSource(s: string | undefined): ImageSource | null {
+  const valid: ImageSource[] = ['procedural', 'mediapipe', 'cloud', 'apple-playground'];
+  return valid.includes(s as ImageSource) ? (s as ImageSource) : null;
+}
+
 // Sub-component: wraps a single rose or thorn artwork with the regenerate hook
 interface ArtworkWithRegenerateProps {
   imageUri?: string;
@@ -62,9 +82,14 @@ export function SummaryScreen({ onFinish }: SummaryScreenProps) {
   const { entries, updateEntryByMemberId } = useSessionStore();
   const [word, setWord] = useState('');
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const insets = useSafeAreaInsets();
 
   const handleSave = async () => {
+    // Guard against double-tap re-entry and re-fire after success
+    if (saving || saved) return;
+    setSaving(true);
+    let succeeded = false;
     try {
       const db = await getDatabase();
       const now = Date.now();
@@ -84,10 +109,14 @@ export function SummaryScreen({ onFinish }: SummaryScreenProps) {
       // Save roses and thorns
       for (const entry of entries) {
         if (entry.rose) {
-          // Clamp image_source to values the DB accepts; drop if unrecognised
-          const roseSource = ['procedural', 'mediapipe', 'cloud', 'apple-playground'].includes(
-            entry.roseImageSource ?? ''
-          ) ? entry.roseImageSource : null;
+          if (entry.rosePrompt === undefined || entry.roseAnswer === undefined) {
+            console.warn('[SummaryScreen] rose entry has undefined prompt/answer', {
+              memberId: entry.memberId,
+              rosePrompt: entry.rosePrompt,
+              roseAnswer: entry.roseAnswer,
+            });
+          }
+          const roseSource = clampImageSource(entry.roseImageSource);
           await db.runAsync(
             `INSERT INTO rose (session_id, member_id, content, deepening_prompt, deepening_answer, created_at,
              image_uri, image_seed, image_source, image_prompt)
@@ -96,20 +125,25 @@ export function SummaryScreen({ onFinish }: SummaryScreenProps) {
               sessionId,
               entry.memberId,
               entry.rose,
-              entry.rosePrompt,
-              entry.roseAnswer,
+              entry.rosePrompt ?? null,
+              entry.roseAnswer ?? null,
               now,
               entry.roseImageUri ?? null,
               entry.roseImageSeed ?? null,
-              roseSource ?? null,
+              roseSource,
               entry.roseImagePrompt ?? null,
             ]
           );
         }
         if (entry.thorn) {
-          const thornSource = ['procedural', 'mediapipe', 'cloud', 'apple-playground'].includes(
-            entry.thornImageSource ?? ''
-          ) ? entry.thornImageSource : null;
+          if (entry.thornPrompt === undefined || entry.thornAnswer === undefined) {
+            console.warn('[SummaryScreen] thorn entry has undefined prompt/answer', {
+              memberId: entry.memberId,
+              thornPrompt: entry.thornPrompt,
+              thornAnswer: entry.thornAnswer,
+            });
+          }
+          const thornSource = clampImageSource(entry.thornImageSource);
           await db.runAsync(
             `INSERT INTO thorn (session_id, member_id, content, deepening_prompt, deepening_answer, created_at,
              image_uri, image_seed, image_source, image_prompt)
@@ -118,25 +152,43 @@ export function SummaryScreen({ onFinish }: SummaryScreenProps) {
               sessionId,
               entry.memberId,
               entry.thorn,
-              entry.thornPrompt,
-              entry.thornAnswer,
+              entry.thornPrompt ?? null,
+              entry.thornAnswer ?? null,
               now,
               entry.thornImageUri ?? null,
               entry.thornImageSeed ?? null,
-              thornSource ?? null,
+              thornSource,
               entry.thornImagePrompt ?? null,
             ]
           );
         }
       }
 
+      succeeded = true;
       setSaved(true);
       setTimeout(() => {
         onFinish();
       }, 1500);
     } catch (err) {
-      console.error('[SummaryScreen] handleSave failed:', err);
-      Alert.alert('Save Failed', 'Could not save the session. Please try again.');
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[SummaryScreen] handleSave failed', {
+        message,
+        stack: err instanceof Error ? err.stack : undefined,
+        entriesCount: entries.length,
+        closingWord: word,
+      });
+      Alert.alert(
+        'Save Failed',
+        `Could not save the session.\n\n${message}\n\nPlease screenshot this and try again.`
+      );
+    } finally {
+      // On the success path, keep saving=true through the 1500 ms "Saved!" display
+      // window so the button stays disabled. On the error path, clear it so the
+      // user can retry. The local `succeeded` flag avoids reading the stale React
+      // state closure (setSaved(true) is async — `saved` is still false here).
+      if (!succeeded) {
+        setSaving(false);
+      }
     }
   };
 
@@ -145,6 +197,7 @@ export function SummaryScreen({ onFinish }: SummaryScreenProps) {
       className="flex-1 px-6"
       style={{ backgroundColor: theme.colors.background }}
       contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+      keyboardShouldPersistTaps="handled"
     >
       <View className="pb-4 items-center" style={{ paddingTop: insets.top + 16 }}>
         <Text className="text-4xl mb-2">🌟</Text>
@@ -249,8 +302,9 @@ export function SummaryScreen({ onFinish }: SummaryScreenProps) {
           <TouchableOpacity
             onPress={handleSave}
             className="py-4 rounded-2xl items-center mb-4"
-            style={{ backgroundColor: theme.colors.primary }}
+            style={{ backgroundColor: theme.colors.primary, opacity: saving ? 0.6 : 1 }}
             activeOpacity={0.8}
+            disabled={saving}
           >
             <Text className="text-white text-lg font-semibold">Save & Close</Text>
           </TouchableOpacity>

@@ -61,6 +61,7 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
       className="flex-1 px-6"
       style={{ backgroundColor: theme.colors.background }}
       contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+      keyboardShouldPersistTaps="handled"
     >
       <View className="pb-6" style={{ paddingTop: insets.top + 16 }}>
         <Text className="text-3xl font-bold mb-2" style={{ color: theme.colors.text }}>

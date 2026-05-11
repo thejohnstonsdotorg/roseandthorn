@@ -239,7 +239,7 @@ export function SettingsScreen({ onBack, onResetFamily }: SettingsScreenProps) {
         </Text>
       </View>
 
-      <ScrollView className="px-6" contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}>
+      <ScrollView className="px-6" contentContainerStyle={{ paddingBottom: insets.bottom + 16 }} keyboardShouldPersistTaps="handled">
         {family ? (
           <>
             <View className="mb-6">
