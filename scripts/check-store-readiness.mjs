@@ -95,7 +95,10 @@ for (const permission of [
 
 check('production build emits app bundle', production.android?.buildType === 'app-bundle', `found: ${production.android?.buildType}`);
 check('production auto-increments Android versionCode', production.android?.autoIncrement === true, `found: ${production.android?.autoIncrement}`);
-check('production Cloud AI flag is disabled', production.env?.EXPO_PUBLIC_ENABLE_CLOUD_AI === 'false', `found: ${production.env?.EXPO_PUBLIC_ENABLE_CLOUD_AI}`);
+// Cloud AI is intentionally enabled in production as opt-in BYO-key (v1.0.1+).
+// The check now verifies the flag is explicitly set (either 'true' or 'false') rather
+// than accidentally undefined, which would mean the flag was dropped from eas.json.
+check('production Cloud AI flag is explicitly set', production.env?.EXPO_PUBLIC_ENABLE_CLOUD_AI === 'true' || production.env?.EXPO_PUBLIC_ENABLE_CLOUD_AI === 'false', `found: ${production.env?.EXPO_PUBLIC_ENABLE_CLOUD_AI}`);
 check('production RN new architecture override is disabled', production.env?.EXPO_NEW_ARCH_ENABLED === 'false', `found: ${production.env?.EXPO_NEW_ARCH_ENABLED}`);
 check('EAS submit targets internal track by default', submitProduction.track === 'internal', `found: ${submitProduction.track}`);
 check('EAS submit creates draft releases', submitProduction.releaseStatus === 'draft', `found: ${submitProduction.releaseStatus}`);
@@ -103,7 +106,7 @@ check('EAS submit creates draft releases', submitProduction.releaseStatus === 'd
 check('privacy policy file exists', fileExists('docs/privacy.html'));
 check('privacy policy has contact email', /mailto:kencjohnston@gmail\.com/.test(privacyHtml));
 check('privacy policy states no analytics', /No analytics or crash reporting/.test(privacyHtml));
-check('privacy policy states Cloud AI is disabled in v1.0', /Cloud AI artwork \(disabled in v1\.0\)/.test(privacyHtml));
+check('privacy policy describes Cloud AI as opt-in BYO key', /Cloud AI artwork \(opt-in/.test(privacyHtml));
 check('privacy policy describes user-initiated export', /you\s+choose\s+the\s+destination/i.test(privacyHtml));
 
 if (listingJson) {
